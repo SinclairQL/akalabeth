@@ -1,0 +1,149 @@
+100 REMark Akalabeth: World of Doom
+110 REMark Written by Richard Garriott, 1979.
+120 REMark Ported from Apple II BASIC to QL SuperBASIC
+130 REMark by George Beckett, 2017
+140 REMark 
+150 REMark Version 0.1, Incomplete first draft
+160 REMark 
+1000 REMark Initialisation
+1010 MODE 8
+1020 BORDER #1
+1030 PAPER 0: INK 7: CLS #1
+1100 REMark Initialise game
+1110 GO SUB 10000: REMark Initial global variables/ arrays
+1120 initCharLab c$: REMark Set up characteristics labels
+1130 initStoreLab w$: REMark Set up store-item labels
+1140 setupTables XX%, YY%, PER%: REMark Set up lookup tables for dungeon graphics
+1150 initMonsterLab m$: REMark Set up monster labels
+1300 REMark Main game loop
+1310 REPeat gameLoop
+1320 initPlayer luckyNumber, level, c, pt$: REMark Init player
+1330 CLS: AT 12,0: PRINT " WELCOME TO AKALABETH, WORLD OF DOOM!"
+1340 initMap te%: REMark Initialise overland map
+1970 EXIT gameLoop
+1980 END REPeat gameLoop
+1990 STOP
+9000 REMark Initialise player
+9010 DEFine PROCedure initPlayer(luckyNumber, level, c, pt$)
+9020 LOCal n, i$
+9030 AT #1, 5, 0
+9040 INPUT #1, 'TYPE THY LUCKY NUMBER.....'; luckyNumber
+9050 RANDOMISE luckyNumber
+9060 AT #1, 7,0
+9070 INPUT #1, 'LEVEL OF PLAY (1-10)......'; level
+9080 CLS #1
+9090 AT 8,0
+9100 FOR n=0 TO 5
+9110 LET c(n)=INT(SQRT(RND)*21+4)
+9115 PRINT c$(n);
+9120 printNum c(n), 3
+9130 PRINT \
+9140 NEXT n
+9150 AT 15,0
+9160 PRINT "SHALT THOU PLAY WITH THESE QUANTITIES? ";
+9170 LET i$=INKEY$(-1)
+9175 IF i$<>"Y" THEN GO TO 9090
+9180 PRINT i$
+9190 AT 18,0
+9200 PRINT "AND SHALT THOU BE A FIGHTER OR A MAGE? ";
+9210 LET i$=INKEY$(-1)
+9220 IF i$<>"F" AND i$<>"M" THEN GO TO 9210
+9230 LET pt$=i$: PRINT i$
+9240 END DEFine initPlayer
+10000 REMark Initial global variables / arrays
+10005 DIM w$(6,14): REMark Store-item labels
+10010 DIM c$(5,16): REMark Characteristic labels
+10020 DIM c(5): REMark Player characteristics
+10030 DIM PW(5): REMark Player inventory
+10040 DIM XX%(10), YY%(10): REMark Graphics lookup tables
+10050 DIM PER%(10,3): REMark Perspective lookup tables
+10060 DIM te%(20,20): REMark Overland map
+10070 DIM m$(10,15): REMark Monster labels
+10080 DIM ML%(10,1), MZ%(10,1): REMark Monster attributes
+10090 pt$="F": REMark Player type
+10290 RETurn 
+10300 REMark Initialise characteristics labels
+10310 DEFine PROCedure initCharLab(c$)
+10320 LOCal n
+10330 RESTORE 10390
+10340 FOR n=0 TO 5
+10350 READ c$(n)
+10360 NEXT n
+10370 END DEFine initCharLab
+10390 DATA "HIT POINTS.....","STRENGTH.......","DEXTERITY......","STAMINA........","WISDOM.........","GOLD..........."
+10400 REMark Initialise store-item labels
+10410 DEFine PROCedure initStoreLab(w$)
+10420 LOCal n
+10430 RESTORE 10490
+10440 FOR n=0 TO 5
+10450 READ w$(n)
+10460 NEXT n
+10470 END DEFine initStoreLab
+10490 DATA "FOOD","RAPIER","AXE","SHIELD","BOW AND ARROWS","MAGIC AMULET"
+10500 REMark Set up lookup tables for dungeon graphics
+10510 DEFine PROCedure setupTables(XX%, YY%, PER%)
+10520 LOCal atn1, n
+10530 LET atn1=ATAN(1)
+10540 XX%(0) = 139: YY%(0) = 79
+10550 FOR n=2 TO 20 STEP 2
+10560 XX%(n/2) = INT(ATAN(1/n) / atn1 * 140 +.5)
+10570 LET YY%(n/2) = INT(XX%(n/2)*4/7)
+10580 LET PER%(n/2,0) = 139-XX%(n/2)
+10590 LET PER%(n/2,1) = 139+XX%(n/2)
+10600 LET PER%(n/2,2) = 79 - YY%(n/2)
+10610 LET PER%(n/2,3) = 79 + YY%(n/2)
+10620 NEXT n
+10630 LET PER%(0,0)=0
+10640 LET PER%(0,1)=279
+10650 LET PER%(0,2)=0
+10660 LET PER%(0,3)=159
+10690 END DEFine setupTables
+10700 REMark Initialise overland map
+10710 DEFine PROCedure initMap(te%)
+10720 LOCal m, n, obj
+10730 PRINT #0; " (PLEASE WAIT)";
+10740 FOR n=0 TO 20: REMark Overland border is all mountains
+10750 te%(n,0)=1: te%(0,n)=1: te%(20,n)=1: te%(n,20)=1
+10760 NEXT n
+10770 FOR m=1 TO 19
+10780 FOR n=1 TO 19
+10790 obj = INT(RND^5*4.5)
+10800 IF obj=3 AND RND > .5 THEN te%(m,n)=0: ELSE te%(m,n)=obj: END IF 
+10810 NEXT n
+10820 PRINT #0; ".";
+10830 NEXT m
+10840 REMark MAKE SURE AT LEAST ONE DUNGEON
+10850 te%(INT(RND(1 TO 19)), INT(RND(1 TO 19)))=3
+10860 REMark PLACE LORD BRITAIN'S CASTLE
+10870 te%(INT(RND(1 TO 19)), INT(RND(1 TO 19)))=5
+10880 END DEFine initMap
+10900 REMark Initialise monster labels
+10910 DEFine PROCedure initMonsterLab(m$)
+10920 LOCal n
+10930 RESTORE 10990
+10940 FOR n=1 TO 10
+10950 READ m$(n)
+10960 NEXT n
+10970 END DEFine initMonsterLab
+10990 DATA "SKELETON","THIEF","GIANT RAT","ORC","VIPER","CARRION CRAWLER","GREMLIN","MIMIC","DAEMON","BALROG"
+20000 REMark Print number, fixed-width, right-justified
+20005 DEFine PROCedure printNum(value, length)
+20010 LOCal v$, n
+20020 LET v$=value
+20030 IF LEN(v$)>length THEN 
+20040 FOR n=1 TO length: LET v$=v$+"*": NEXT n
+20045 ELSE 
+20050 REPeat pSLoop: IF LEN(v$)=length: EXIT pSLoop: END IF : v$=" "&v$: END REPeat pSLoop
+20060 END IF 
+20070 PRINT v$;
+20080 END DEFine printNum
+30000 REMark TESTS
+30100 REMark CHECK OVERLAND MAP
+30110 FOR m=0 TO 20
+30120 PRINT
+30130 FOR n=0 TO 20
+30140 PRINT te%(m,n);
+30150 NEXT n
+30160 NEXT m
+30170 PAUSE
+30180 RETurn 
