@@ -18,7 +18,8 @@
 1300 REMark Main game loop
 1310 REPeat gameLoop
 1320 initPlayer luckyNumber, level, c, pt$: REMark Init player
-1330 CLS: AT 12,0: PRINT " WELCOME TO AKALABETH, WORLD OF DOOM!"
+1325 equipPlayer c$, c, w$
+1330 CLS #0: CLS #1: AT 12,0: PRINT "WELCOME TO AKALABETH, WORLD OF DOOM!"
 1340 initMap te%: REMark Initialise overland map
 1970 EXIT gameLoop
 1980 END REPeat gameLoop
@@ -51,16 +52,17 @@
 9230 LET pt$=i$: PRINT i$
 9240 END DEFine initPlayer
 10000 REMark Initial global variables / arrays
-10005 DIM w$(6,14): REMark Store-item labels
-10010 DIM c$(5,16): REMark Characteristic labels
-10020 DIM c(5): REMark Player characteristics
-10030 DIM PW(5): REMark Player inventory
-10040 DIM XX%(10), YY%(10): REMark Graphics lookup tables
-10050 DIM PER%(10,3): REMark Perspective lookup tables
-10060 DIM te%(20,20): REMark Overland map
-10070 DIM m$(10,15): REMark Monster labels
-10080 DIM ML%(10,1), MZ%(10,1): REMark Monster attributes
-10090 pt$="F": REMark Player type
+10010 DIM w$(6,14): REMark Store-item labels
+10020 DIM W(5,3): REMark Store-item characteristics
+10030 DIM c$(5,15): REMark Characteristic labels
+10040 DIM c(5): REMark Player characteristics
+10050 DIM PW(5): REMark Player inventory
+10060 DIM XX%(10), YY%(10): REMark Graphics lookup tables
+10070 DIM PER%(10,3): REMark Perspective lookup tables
+10080 DIM te%(20,20): REMark Overland map
+10090 DIM m$(10,15): REMark Monster labels
+10100 DIM ML%(10,1), MZ%(10,1): REMark Monster attributes
+10110 pt$="F": REMark Player type
 10290 RETurn 
 10300 REMark Initialise characteristics labels
 10310 DEFine PROCedure initCharLab(c$)
@@ -74,12 +76,13 @@
 10400 REMark Initialise store-item labels
 10410 DEFine PROCedure initStoreLab(w$)
 10420 LOCal n
-10430 RESTORE 10490
+10430 RESTORE 10480
 10440 FOR n=0 TO 5
-10450 READ w$(n)
+10450 READ w$(n),W(n,0),W(n,1),W(n,2),W(n,3): REMark Name, Price, Units, Damage, Key (ASCII)
 10460 NEXT n
 10470 END DEFine initStoreLab
-10490 DATA "FOOD","RAPIER","AXE","SHIELD","BOW AND ARROWS","MAGIC AMULET"
+10480 DATA "FOOD",1,10,0,70,"RAPIER",8,1,10,82,"AXE",5,1,5,65
+10490 DATA "SHIELD",6,1,1,83,"BOW AND ARROWS",3,1,4,66,"MAGIC AMULET",15,1,-1,77
 10500 REMark Set up lookup tables for dungeon graphics
 10510 DEFine PROCedure setupTables(XX%, YY%, PER%)
 10520 LOCal atn1, n
@@ -100,6 +103,7 @@
 10690 END DEFine setupTables
 10700 REMark Initialise overland map
 10710 DEFine PROCedure initMap(te%)
+10715 REMark Key: 0-blank; 1-mountain; 2-refuge; 3-town; 4-dungeon; 5-castle
 10720 LOCal m, n, obj
 10730 PRINT #0; " (PLEASE WAIT)";
 10740 FOR n=0 TO 20: REMark Overland border is all mountains
@@ -126,6 +130,50 @@
 10960 NEXT n
 10970 END DEFine initMonsterLab
 10990 DATA "SKELETON","THIEF","GIANT RAT","ORC","VIPER","CARRION CRAWLER","GREMLIN","MIMIC","DAEMON","BALROG"
+11000 REMark equip player from shop
+11010 DEFine PROCedure equipPlayer(c$, c, w$)
+11020 LOCal n, z, price
+11030 CLS
+11040 AT 1,0
+11050 PRINT "     STAT'S           WEAPONS"
+11060 AT 9,15
+11070 PRINT "Q-QUIT"
+11080 AT 11,2
+11090 PRINT "PRICE     DAMAGE    ITEM"
+11100 FOR n=0 TO 5
+11110 AT 13+n,2
+11120 PRINT W(n,0);
+11130 IF W(n,1) > 1 THEN PRINT " FOR " & W(n,1)
+11140 AT 13+n,12
+11150 IF W(n,2) > 1 THEN PRINT "1-" & W(n,2): ELSE IF W(n,2)=0 THEN PRINT "N/A": ELSE IF W(n,2) = -1 THEN PRINT "?????": ELSE PRINT W(n,2): END IF 
+11160 AT 13+n,22
+11170 PRINT w$(n)
+11180 NEXT n
+11190 AT 0,0
+11200 PRINT "WELCOME TO THE ADVENTURE SHOP"
+11210 REPeat buyItem
+11220 AT 3,0
+11230 FOR n=0 TO 5
+11240 PRINT c$(n);
+11250 printNum c(n), 3
+11260 printNum PW(n),3
+11270 PRINT "-"; w$(n)
+11280 NEXT n
+11290 PRINT #0; "WHICH ITEM SHALT THOU BUY ";
+11300 LET i$=INKEY$(-1)
+11310 IF i$="Q" THEN PRINT #0, \ "BYE": PAUSE 200: EXIT buyItem: END IF 
+11320 LET z=-1
+11330 FOR n=0 TO 5
+11340 IF i$=CHR$(W(n,3)) THEN PRINT #0, w$(n): LET z=n: LET p=W(n,0):END IF 
+11350 NEXT n
+11360 IF z=-1 THEN PRINT #0, "I'M SORRY WE DON'T HAVE THAT.": NEXT buyItem: END IF 
+11370 IF (z=1 OR z=4) AND pt$="M" THEN PRINT #0, "I'M SORRY MAGES CAN'T USE THAT": NEXT buyItem: END IF 
+11380 IF c(5) < p THEN PRINT #0, "M'LORD THOU CAN NOT AFFORD THAT ITEM.": NEXT buyItem: END IF 
+11390 PW(z)=PW(z)+1+(9*NOT(z))
+11400 c(5)=c(5)-p
+11410 END REPeat buyItem
+11420 RETurn 
+11430 END DEFine equipPlayer
 20000 REMark Print number, fixed-width, right-justified
 20005 DEFine PROCedure printNum(value, length)
 20010 LOCal v$, n
