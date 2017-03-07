@@ -4,7 +4,8 @@
 130 REMark by George Beckett, 2017
 140 REMark 
 150 REMark Version 0.1, Incomplete first draft
-160 REMark 
+160 REMark Version 0.2, Overground navigation implemented
+170 REMark
 1000 REMark Initialisation
 1010 MODE 8
 1020 BORDER #1
@@ -18,10 +19,46 @@
 1300 REMark Main game loop
 1310 REPeat gameLoop
 1320 initPlayer luckyNumber, level, c, pt$: REMark Init player
-1325 equipPlayer c$, c, w$
-1330 CLS #0: CLS #1: AT 12,0: PRINT "WELCOME TO AKALABETH, WORLD OF DOOM!"
-1340 initMap te%: REMark Initialise overland map
-1970 EXIT gameLoop
+1330 equipPlayer c$, c, w$
+1340 CLS #0: CLS #1
+1350 AT 12,0: PRINT "WELCOME TO AKALABETH, WORLD OF DOOM!"
+1360 initMap te%: REMark Initialise overland map
+1370 REPeat turnLoop
+1380 printOvergroundLocal tx, ty, gx, gx1, gx2, gx3, gx4, gy, gy1, gy2, gy3, gy4, ox, oy, te%
+1390 AT 1,1: PRINT tx; " "; ty ;" "
+1400 PRINT #0,"COMMAND? ";
+1410 keyPress = CODE(INKEY$(-1))
+1420 SELect ON keyPress
+1430 ON keyPress = 208
+1440 PRINT #0, "NORTH"
+1450 IF te%(tx, ty+1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS" : ELSE ty=ty+1
+1460 ON keyPress = 216
+1470 PRINT #0, "SOUTH"
+1480 IF te%(tx, ty-1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE ty=ty-1
+1490 ON keyPress=192
+1500 PRINT #0, "EAST"
+1510 IF te%(tx-1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx-1
+1520 ON keyPress=200
+1530 PRINT #0, "WEST"
+1540 IF te%(tx+1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx+1
+1550 ON keyPress=CODE("X")
+1560 LET zz=te%(tx,ty)
+1570 SELect ON zz
+1580 ON zz=3
+1590 equipPlayer c$, c, w$
+1600 CLS #0
+1610 ON zz=4 TO 5
+1620 PRINT #0, "SORRY. NOT IMPLEMENTED"
+1630 ON zz=REMAINDER 
+1640 PRINT #0, "HUH?"
+1650 END SELect 
+1660 ON keyPress=CODE("M")
+1670 AT 0,0: FOR j=0 TO 20: FOR i=0 TO 20: PRINT te%(i,20-j);: END FOR i: PRINT : END FOR j: PAUSE -1
+1680 ON keyPress = REMAINDER 
+1690 PRINT #0, "HUH?"
+1700 END SELect 
+1710 END REPeat turnLoop
+1970 REMark EXIT gameLoop
 1980 END REPeat gameLoop
 1990 STOP
 9000 REMark Initialise player
@@ -39,7 +76,7 @@
 9115 PRINT c$(n);
 9120 printNum c(n), 3
 9130 PRINT \
-9140 NEXT n
+9140 END FOR n
 9150 AT 15,0
 9160 PRINT "SHALT THOU PLAY WITH THESE QUANTITIES? ";
 9170 LET i$=INKEY$(-1)
@@ -50,7 +87,9 @@
 9210 LET i$=INKEY$(-1)
 9220 IF i$<>"F" AND i$<>"M" THEN GO TO 9210
 9230 LET pt$=i$: PRINT i$
-9240 END DEFine initPlayer
+9240 LET tx=INT(RND(1 TO 19))
+9250 LET ty=INT(RND(1 TO 19))
+9260 END DEFine initPlayer
 10000 REMark Initial global variables / arrays
 10010 DIM w$(6,14): REMark Store-item labels
 10020 DIM W(5,3): REMark Store-item characteristics
@@ -63,6 +102,9 @@
 10090 DIM m$(10,15): REMark Monster labels
 10100 DIM ML%(10,1), MZ%(10,1): REMark Monster attributes
 10110 pt$="F": REMark Player type
+10120 LET gx=33: LET gx1=gx/5: LET gx2=2*gx/5: LET gx3=3*gx/5+1: LET gx4=4*gx/5+1
+10130 LET gy=33: LET gy1=gy/5: LET gy2=2*gy/5: LET gy3=3*gy/5+1: LET gy4=4*gy/5+1
+10140 LET ox=35: LET oy=0
 10290 RETurn 
 10300 REMark Initialise characteristics labels
 10310 DEFine PROCedure initCharLab(c$)
@@ -70,7 +112,7 @@
 10330 RESTORE 10390
 10340 FOR n=0 TO 5
 10350 READ c$(n)
-10360 NEXT n
+10360 END FOR n
 10370 END DEFine initCharLab
 10390 DATA "HIT POINTS.....","STRENGTH.......","DEXTERITY......","STAMINA........","WISDOM.........","GOLD..........."
 10400 REMark Initialise store-item labels
@@ -79,7 +121,7 @@
 10430 RESTORE 10480
 10440 FOR n=0 TO 5
 10450 READ w$(n),W(n,0),W(n,1),W(n,2),W(n,3): REMark Name, Price, Units, Damage, Key (ASCII)
-10460 NEXT n
+10460 END FOR n
 10470 END DEFine initStoreLab
 10480 DATA "FOOD",1,10,0,70,"RAPIER",8,1,10,82,"AXE",5,1,5,65
 10490 DATA "SHIELD",6,1,1,83,"BOW AND ARROWS",3,1,4,66,"MAGIC AMULET",15,1,-1,77
@@ -95,7 +137,7 @@
 10590 LET PER%(n/2,1) = 139+XX%(n/2)
 10600 LET PER%(n/2,2) = 79 - YY%(n/2)
 10610 LET PER%(n/2,3) = 79 + YY%(n/2)
-10620 NEXT n
+10620 END FOR n
 10630 LET PER%(0,0)=0
 10640 LET PER%(0,1)=279
 10650 LET PER%(0,2)=0
@@ -106,34 +148,36 @@
 10715 REMark Key: 0-blank; 1-mountain; 2-refuge; 3-town; 4-dungeon; 5-castle
 10720 LOCal m, n, obj
 10730 PRINT #0; " (PLEASE WAIT)";
-10740 FOR n=0 TO 20: REMark Overland border is all mountains
-10750 te%(n,0)=1: te%(0,n)=1: te%(20,n)=1: te%(n,20)=1
-10760 NEXT n
+10735 REMark Overland border is all mountains
+10740 FOR m=0 TO 20
+10750 te%(m,0)=1: te%(0,m)=1: te%(20,m)=1: te%(m,20)=1
+10760 END FOR m
 10770 FOR m=1 TO 19
 10780 FOR n=1 TO 19
 10790 obj = INT(RND^5*4.5)
 10800 IF obj=3 AND RND > .5 THEN te%(m,n)=0: ELSE te%(m,n)=obj: END IF 
-10810 NEXT n
+10810 END FOR n
 10820 PRINT #0; ".";
-10830 NEXT m
+10830 END FOR m
 10840 REMark MAKE SURE AT LEAST ONE DUNGEON
 10850 te%(INT(RND(1 TO 19)), INT(RND(1 TO 19)))=3
 10860 REMark PLACE LORD BRITAIN'S CASTLE
 10870 te%(INT(RND(1 TO 19)), INT(RND(1 TO 19)))=5
-10880 END DEFine initMap
+10880 CLS #0
+10890 END DEFine initMap
 10900 REMark Initialise monster labels
 10910 DEFine PROCedure initMonsterLab(m$)
 10920 LOCal n
 10930 RESTORE 10990
 10940 FOR n=1 TO 10
 10950 READ m$(n)
-10960 NEXT n
+10960 END FOR n
 10970 END DEFine initMonsterLab
 10990 DATA "SKELETON","THIEF","GIANT RAT","ORC","VIPER","CARRION CRAWLER","GREMLIN","MIMIC","DAEMON","BALROG"
 11000 REMark equip player from shop
 11010 DEFine PROCedure equipPlayer(c$, c, w$)
 11020 LOCal n, z, price
-11030 CLS
+11030 CLS: CLS #0
 11040 AT 1,0
 11050 PRINT "     STAT'S           WEAPONS"
 11060 AT 9,15
@@ -148,7 +192,7 @@
 11150 IF W(n,2) > 1 THEN PRINT "1-" & W(n,2): ELSE IF W(n,2)=0 THEN PRINT "N/A": ELSE IF W(n,2) = -1 THEN PRINT "?????": ELSE PRINT W(n,2): END IF 
 11160 AT 13+n,22
 11170 PRINT w$(n)
-11180 NEXT n
+11180 END FOR n
 11190 AT 0,0
 11200 PRINT "WELCOME TO THE ADVENTURE SHOP"
 11210 REPeat buyItem
@@ -158,14 +202,14 @@
 11250 printNum c(n), 3
 11260 printNum PW(n),3
 11270 PRINT "-"; w$(n)
-11280 NEXT n
+11280 END FOR n
 11290 PRINT #0; "WHICH ITEM SHALT THOU BUY ";
 11300 LET i$=INKEY$(-1)
 11310 IF i$="Q" THEN PRINT #0, \ "BYE": PAUSE 200: EXIT buyItem: END IF 
 11320 LET z=-1
 11330 FOR n=0 TO 5
 11340 IF i$=CHR$(W(n,3)) THEN PRINT #0, w$(n): LET z=n: LET p=W(n,0):END IF 
-11350 NEXT n
+11350 END FOR n
 11360 IF z=-1 THEN PRINT #0, "I'M SORRY WE DON'T HAVE THAT.": NEXT buyItem: END IF 
 11370 IF (z=1 OR z=4) AND pt$="M" THEN PRINT #0, "I'M SORRY MAGES CAN'T USE THAT": NEXT buyItem: END IF 
 11380 IF c(5) < p THEN PRINT #0, "M'LORD THOU CAN NOT AFFORD THAT ITEM.": NEXT buyItem: END IF 
@@ -174,12 +218,38 @@
 11410 END REPeat buyItem
 11420 RETurn 
 11430 END DEFine equipPlayer
+11500 REMark Print overground local area
+11510 DEFine PROCedure printOvergroundLocal(tx, ty, gx, gx1, gx2, gx3, gx4, gy, gy1, gy2, gy3, gy4, ox, oy, te%)
+11520 LOCal zz, cx, cy
+11530 CLS #1
+11540 LINE ox+3*gx/2-2,oy+3*gy/2 TO ox+3*gx/2+3,oy+3*gy/2
+11550 LINE ox+3*gx/2,oy+3*gy/2-2 TO ox+3*gx/2,oy+3*gy/2+3
+11560 FOR dx=-1 TO 1
+11570 FOR dy=-1 TO 1
+11580 zz=te%(tx+dx, ty+dy)
+11590 cx=ox+(dx+1)*gx
+11600 cy=oy+(dy+1)*gy
+11610 SELect ON zz
+11620 ON zz=1: REMark Mountain
+11630 LINE cx+gx1,cy TO cx+gx1,cy+gy1 TO cx+gx2,cy+gy2 TO cx+gx4,cy+gy2 TO cx+gx4,cy: LINE cx,cy+gy4 TO cx+gx1,cy+gy4: LINE cx+gx,cy+gy4 TO cx+gx4, cy+gy4: LINE cx,cy+gy1 TO cx+gx1,cy+gy1: LINE cx+gx4,cy+gy1 TO cx+gx,cy+gy1: LINE cx+gx1,cy+gy TO cx+gx1,cy+gy3 TO cx+gx2,cy+gy3 TO cx+gx2,cy+gy2 TO cx+gx3,cy+gy2 TO cx+gx3,cy+gy4 TO cx+gx4,cy+gy4 TO cx+gx4, cy+gy
+11640 ON zz=2: REMark Refuge
+11650 LINE cx+gx2, cy+gy2 TO cx+gx3, cy+gy2 TO cx+gx3, cy+gy3 TO cx+gx2, cy+gy3 TO cx+gx2, cy+gy2
+11660 ON zz=3: REMark Town
+11670 LINE cx+gx1,cy+gy1 TO cx+gx2,cy+gy1 TO cx+gx2,cy+gy4 TO cx+gx1,cy+gy4 TO cx+gx1,cy+gy3 TO cx+gx4,cy+gy3 TO cx+gx4,cy+gy4 TO cx+gx3,cy+gy4 TO cx+gx3,cy+gy1 TO cx+gx4,cy+gy1 TO cx+gx4,cy+gy2 TO cx+gx1,cy+gy2 TO cx+gx1,cy+gy1
+11680 ON zz=4: REMark Dungeon
+11690 LINE cx+gx2,cy+gy2 TO cx+gx3+1,cy+gy3+1: LINE cx+gx2,cy+gy3+1 TO cx+gx3+1, cy+gy2
+11700 ON zz=5: REMark Castle
+11710 LINE cx,cy TO cx+gx,cy TO cx+gx,cy+gy TO cx,cy+gy TO cx,cy: LINE cx+gx1,cy+gy1 TO cx+gx4,cy+gy1 TO cx+gx4,cy+gy4 TO cx+gx1,cy+gy4 TO cx+gx1,cy+gy1: LINE cx+gx1,cy+gy1 TO cx+gx4,cy+gy4 : LINE cx+gx4,cy+gy1 TO cx+gx1,cy+gy4
+11720 END SELect 
+11730 END FOR dy
+11740 END FOR dx
+11750 END DEFine printOvergroundLocal
 20000 REMark Print number, fixed-width, right-justified
 20005 DEFine PROCedure printNum(value, length)
 20010 LOCal v$, n
 20020 LET v$=value
 20030 IF LEN(v$)>length THEN 
-20040 FOR n=1 TO length: LET v$=v$+"*": NEXT n
+20040 FOR n=1 TO length: LET v$=v$+"*": END FOR n
 20045 ELSE 
 20050 REPeat pSLoop: IF LEN(v$)=length: EXIT pSLoop: END IF : v$=" "&v$: END REPeat pSLoop
 20060 END IF 
@@ -191,7 +261,7 @@
 30120 PRINT
 30130 FOR n=0 TO 20
 30140 PRINT te%(m,n);
-30150 NEXT n
-30160 NEXT m
+30150 END FOR n
+30160 END FOR m
 30170 PAUSE
 30180 RETurn 
