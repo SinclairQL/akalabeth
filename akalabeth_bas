@@ -5,11 +5,9 @@
 140 REMark 
 150 REMark Version 0.1, Incomplete first draft
 160 REMark Version 0.2, Overground navigation implemented
-170 REMark
+170 REMark 
 1000 REMark Initialisation
-1010 MODE 8
-1020 BORDER #1
-1030 PAPER 0: INK 7: CLS #1
+1010 initMenuScreen
 1100 REMark Initialise game
 1110 GO SUB 10000: REMark Initial global variables/ arrays
 1120 initCharLab c$: REMark Set up characteristics labels
@@ -18,46 +16,55 @@
 1150 initMonsterLab m$: REMark Set up monster labels
 1300 REMark Main game loop
 1310 REPeat gameLoop
+1315 setupMenuScreen
 1320 initPlayer luckyNumber, level, c, pt$: REMark Init player
 1330 equipPlayer c$, c, w$
 1340 CLS #0: CLS #1
 1350 AT 12,0: PRINT "WELCOME TO AKALABETH, WORLD OF DOOM!"
 1360 initMap te%: REMark Initialise overland map
+1365 setupGameScreen
 1370 REPeat turnLoop
 1380 printOvergroundLocal tx, ty, gx, gx1, gx2, gx3, gx4, gy, gy1, gy2, gy3, gy4, ox, oy, te%
-1390 AT 1,1: PRINT tx; " "; ty ;" "
+1390 displayStats c, pw, tx, ty
 1400 PRINT #0,"COMMAND? ";
 1410 keyPress = CODE(INKEY$(-1))
 1420 SELect ON keyPress
 1430 ON keyPress = 208
 1440 PRINT #0, "NORTH"
-1450 IF te%(tx, ty+1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS" : ELSE ty=ty+1
+1450 IF te%(tx, ty+1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS" : ELSE ty=ty+1: LET pw(0)=pw(0)-1
 1460 ON keyPress = 216
 1470 PRINT #0, "SOUTH"
-1480 IF te%(tx, ty-1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE ty=ty-1
+1480 IF te%(tx, ty-1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE ty=ty-1: LET pw(0)=pw(0)-1
 1490 ON keyPress=192
 1500 PRINT #0, "EAST"
-1510 IF te%(tx-1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx-1
+1510 IF te%(tx-1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx-1: LET pw(0)=pw(0)-1
 1520 ON keyPress=200
 1530 PRINT #0, "WEST"
-1540 IF te%(tx+1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx+1
+1540 IF te%(tx+1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx+1: LET pw(0)=pw(0)-1
 1550 ON keyPress=CODE("X")
 1560 LET zz=te%(tx,ty)
 1570 SELect ON zz
 1580 ON zz=3
 1590 equipPlayer c$, c, w$
-1600 CLS #0
-1610 ON zz=4 TO 5
+1600 setupGameScreen
+1610 ON zz=4
 1620 PRINT #0, "SORRY. NOT IMPLEMENTED"
+1625 ON zz=5
+1627 visitCastle haveVisited
+1628 setupGameScreen
 1630 ON zz=REMAINDER 
 1640 PRINT #0, "HUH?"
 1650 END SELect 
 1660 ON keyPress=CODE("M")
-1670 AT 0,0: FOR j=0 TO 20: FOR i=0 TO 20: PRINT te%(i,20-j);: END FOR i: PRINT : END FOR j: PAUSE -1
+1665 PRINT #0, "MAP"
+1670 printMap te%, tx, ty
 1680 ON keyPress = REMAINDER 
 1690 PRINT #0, "HUH?"
-1700 END SELect 
-1710 END REPeat turnLoop
+1695 END SELect 
+1700 IF pw(0)<0 THEN LET c(0)=0: PRINT #0, "YOU HAVE STARVED!!!!!"
+1710 IF c(0) <= 0 THEN endGame: EXIT turnLoop
+1740 END SELect 
+1750 END REPeat turnLoop
 1970 REMark EXIT gameLoop
 1980 END REPeat gameLoop
 1990 STOP
@@ -74,7 +81,7 @@
 9100 FOR n=0 TO 5
 9110 LET c(n)=INT(SQRT(RND)*21+4)
 9115 PRINT c$(n);
-9120 printNum c(n), 3
+9120 printNum c(n), 3, 1
 9130 PRINT \
 9140 END FOR n
 9150 AT 15,0
@@ -95,7 +102,7 @@
 10020 DIM W(5,3): REMark Store-item characteristics
 10030 DIM c$(5,15): REMark Characteristic labels
 10040 DIM c(5): REMark Player characteristics
-10050 DIM PW(5): REMark Player inventory
+10050 DIM pw(5): REMark Player inventory
 10060 DIM XX%(10), YY%(10): REMark Graphics lookup tables
 10070 DIM PER%(10,3): REMark Perspective lookup tables
 10080 DIM te%(20,20): REMark Overland map
@@ -105,6 +112,9 @@
 10120 LET gx=33: LET gx1=gx/5: LET gx2=2*gx/5: LET gx3=3*gx/5+1: LET gx4=4*gx/5+1
 10130 LET gy=33: LET gy1=gy/5: LET gy2=2*gy/5: LET gy3=3*gy/5+1: LET gy4=4*gy/5+1
 10140 LET ox=35: LET oy=0
+10150 LET haveVisited=0 : REMark Flag whether or have visited Lord Britain's castle
+10160 LET name$="THE PEASANT": REMark Player's name
+10170 LET task=0
 10290 RETurn 
 10300 REMark Initialise characteristics labels
 10310 DEFine PROCedure initCharLab(c$)
@@ -177,7 +187,7 @@
 11000 REMark equip player from shop
 11010 DEFine PROCedure equipPlayer(c$, c, w$)
 11020 LOCal n, z, price
-11030 CLS: CLS #0
+11030 setupMenuScreen
 11040 AT 1,0
 11050 PRINT "     STAT'S           WEAPONS"
 11060 AT 9,15
@@ -194,13 +204,13 @@
 11170 PRINT w$(n)
 11180 END FOR n
 11190 AT 0,0
-11200 PRINT "WELCOME TO THE ADVENTURE SHOP"
+11200 PRINT #0, "WELCOME TO THE ADVENTURE SHOP"
 11210 REPeat buyItem
 11220 AT 3,0
 11230 FOR n=0 TO 5
 11240 PRINT c$(n);
-11250 printNum c(n), 3
-11260 printNum PW(n),3
+11250 printNum c(n), 3, 1
+11260 printNum pw(n), 3, 1
 11270 PRINT "-"; w$(n)
 11280 END FOR n
 11290 PRINT #0; "WHICH ITEM SHALT THOU BUY ";
@@ -213,7 +223,7 @@
 11360 IF z=-1 THEN PRINT #0, "I'M SORRY WE DON'T HAVE THAT.": NEXT buyItem: END IF 
 11370 IF (z=1 OR z=4) AND pt$="M" THEN PRINT #0, "I'M SORRY MAGES CAN'T USE THAT": NEXT buyItem: END IF 
 11380 IF c(5) < p THEN PRINT #0, "M'LORD THOU CAN NOT AFFORD THAT ITEM.": NEXT buyItem: END IF 
-11390 PW(z)=PW(z)+1+(9*NOT(z))
+11390 pw(z)=pw(z)+1+(9*NOT(z))
 11400 c(5)=c(5)-p
 11410 END REPeat buyItem
 11420 RETurn 
@@ -222,8 +232,8 @@
 11510 DEFine PROCedure printOvergroundLocal(tx, ty, gx, gx1, gx2, gx3, gx4, gy, gy1, gy2, gy3, gy4, ox, oy, te%)
 11520 LOCal zz, cx, cy
 11530 CLS #1
-11540 LINE ox+3*gx/2-2,oy+3*gy/2 TO ox+3*gx/2+3,oy+3*gy/2
-11550 LINE ox+3*gx/2,oy+3*gy/2-2 TO ox+3*gx/2,oy+3*gy/2+3
+11540 LINE ox+3*gx/2-3,oy+3*gy/2 TO ox+3*gx/2+3,oy+3*gy/2
+11550 LINE ox+3*gx/2,oy+3*gy/2-2 TO ox+3*gx/2,oy+3*gy/2+2
 11560 FOR dx=-1 TO 1
 11570 FOR dy=-1 TO 1
 11580 zz=te%(tx+dx, ty+dy)
@@ -244,8 +254,78 @@
 11730 END FOR dy
 11740 END FOR dx
 11750 END DEFine printOvergroundLocal
+11800 REMark Display stats when overground
+11810 DEFine PROCedure displayStats(chars, invent, x, y)
+11820 AT #3, 0,0: PRINT #3, "FOOD=";: printNum invent(0), 3, 3
+11830 AT #3, 1,0: PRINT #3, "H.P.=";: printNum chars(0),3,3
+11840 AT #3, 2,0: PRINT #3, "GOLD=";: printNum chars(5),3,3
+11850 AT 0,0: PRINT "LOC=";: printNum x, 2, 1: PRINT " ";: printNum y, 2, 1
+11860 END DEFine displayStats
+11900 REMark In-game screen configuration
+11910 DEFine PROCedure setupGameScreen
+11920 WINDOW #0, 340, 30, 32, 226
+11930 CLS #0
+11940 WINDOW #1, 448, 210, 32, 16
+11950 CLS #1
+11960 WINDOW #3, 108, 30, 372, 226
+11970 CLS #3
+11990 END DEFine setupGameScreen
+12000 REMark Init menu screen
+12010 DEFine PROCedure initMenuScreen
+12020 MODE 8
+12030 WINDOW #0, 448,30,32,226
+12040 PAPER #0, 0: INK #0, 7: BORDER #0
+12050 OPEN #1, CON_448X210A32X16_128
+12060 PAPER #1, 0: INK #1, 7: BORDER #1
+12070 OPEN #3, CON: PAPER #3, 0: INK #3, 7: CLS #3
+12090 END DEFine initMenuScreen
+12100 REMark Menu screen configuration
+12110 DEFine PROCedure setupMenuScreen
+12120 WINDOW #0, 448, 30, 32, 226
+12130 CLS #0
+12140 WINDOW #1, 448, 210, 32, 16
+12150 CLS #1
+12190 END DEFine setupMenuScreen
+12200 REMark Visit Lord Britain's Castle
+12210 DEFine PROCedure visitCastle(haveVisited)
+12215 LOCal i$, n
+12220 setupMenuScreen
+12230 IF haveVisited THEN 
+12240 IF task>0 THEN 
+12250 PRINT \\ name$ & " WHY HAST THOU RETURNED?"
+12260 PRINT "THOUGH MUST KILL A(N) "; m$(task)
+12270 PRINT "GO NOW AND COMPLETE THY TASK!" \ \ "       PRESS -SPACE- TO CONT."
+12280 PAUSE -1
+12285 END IF 
+12290 ELSE 
+12300 LET haveVisited=1
+12310 PRINT "WELCOME PEASANT INTO THE HALLS OF THE" \ "MIGHTY LORD BRITISH. HEREIN THOU MAY" \ "CHOOSE TO DARE BATTLE WITH THE EVIL" \ "CREATURES OF THE DEPTHS, FOR GREAT" \ "REWARD!"
+12320 INPUT \ "WHAT IS THY NAME PEASANT "; name$
+12330 PRINT "DOEST THOU WISH FOR GRAND ADVENTURE ? "
+12340 LET i$=INKEY$(-1)
+12350 IF i$<>"Y" THEN PRINT \ "THEN LEAVE AND BEGONE!": LET name$ = "":  LET haveVisited=0: PRINT #1, "       PRESS -SPACE- TO CONT.": PAUSE -1: RETurn : END IF 
+12360 PRINT "GOOD! THOU SHALT TRY TO BECOME A" \ "KNIGHT!!!" \\ "THY FIRST TASK IS TO GO INTO THE" \ "DUNGEONS AND TO RETURN ONLY AFTER" \ "KILLING A(N) ";
+12370 LET task=INT(c(4)/3): REMark Wisdom
+12380 PRINT m$(task)
+12390 PRINT \ "     GO NOW UPON THIS QUEST, AND MAY" \"LADY LUCK BE FAIR UNTO YOU....." \ ".....ALSO I, BRITISH, HAVE INCREASED" \ "EACH OF THY ATTRIBUTES BY ONE!"
+12400 FOR n=0 TO 5: LET c(n) = c(n) + 1 : END FOR n
+12410 PRINT #0, "       PRESS -SPACE- TO CONT."
+12420 PAUSE -1
+12480 END IF 
+12490 END DEFine visitCastle
+12600 REMark End Game
+12610 DEFine PROCedure endGame
+12620 LOCal temp$
+12630 WINDOW #0, 448,40,32,216
+12640 CLS #0
+12650 LET temp$=name$ & " AND HIS COMPUTER"
+12660 PRINT #0, "WE MOURN THE PASSING OF"
+12670 PRINT #0, temp$
+12690 PRINT #0, "TO INVOKE A MIRACLE OF RESSURECTION" \ "           <HIT ESC KEY>"
+12700 LET temp$=INKEY$(-1): IF temp$<>" " THEN GO TO 12700: END IF 
+12710 END DEFine endGame
 20000 REMark Print number, fixed-width, right-justified
-20005 DEFine PROCedure printNum(value, length)
+20005 DEFine PROCedure printNum(value, length, channel)
 20010 LOCal v$, n
 20020 LET v$=value
 20030 IF LEN(v$)>length THEN 
@@ -253,15 +333,20 @@
 20045 ELSE 
 20050 REPeat pSLoop: IF LEN(v$)=length: EXIT pSLoop: END IF : v$=" "&v$: END REPeat pSLoop
 20060 END IF 
-20070 PRINT v$;
+20070 PRINT #channel, v$;
 20080 END DEFine printNum
 30000 REMark TESTS
-30100 REMark CHECK OVERLAND MAP
-30110 FOR m=0 TO 20
-30120 PRINT
-30130 FOR n=0 TO 20
-30140 PRINT te%(m,n);
-30150 END FOR n
-30160 END FOR m
-30170 PAUSE
-30180 RETurn 
+30100 REMark Check Overland Map
+30110 DEFine PROCedure printMap(te%, tx, ty)
+30120 LOCal m, n
+30130 AT 0,0
+30140 FOR n=0 TO 20
+30150 FOR m=0 TO 20
+30160 LET zz=te%(m,20-n)
+30170 IF zz THEN PRINT zz;: ELSE PRINT " ";: END IF 
+30180 END FOR m
+30190 PRINT
+30200 END FOR n
+30210 INK 6: AT 20-ty,tx: PRINT "*": INK 7
+30220 PAUSE -1
+30230 RETurn 
