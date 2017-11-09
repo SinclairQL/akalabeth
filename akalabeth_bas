@@ -7,7 +7,8 @@
 160 REMark Version 0.2, Overground navigation implemented
 170 REMark 
 1000 REMark Initialisation
-1010 initMenuScreen
+1005 LET fg1=7: LET bg1=0
+1010 initMenuScreen fg1, bg1
 1100 REMark Initialise game
 1110 GO SUB 10000: REMark Initial global variables/ arrays
 1120 initCharLab c$: REMark Set up characteristics labels
@@ -19,9 +20,10 @@
 1315 setupMenuScreen
 1320 initPlayer luckyNumber, level, c, pt$: REMark Init player
 1330 equipPlayer c$, c, w$
+1335 RANDOMISE luckyNumber
 1340 CLS #0: CLS #1
 1350 AT 12,0: PRINT "WELCOME TO AKALABETH, WORLD OF DOOM!"
-1360 initMap te%: REMark Initialise overland map
+1360 initMap te%, tx, ty: REMark Initialise overland map
 1365 setupGameScreen
 1370 REPeat turnLoop
 1380 printOvergroundLocal tx, ty, gx, gx1, gx2, gx3, gx4, gy, gy1, gy2, gy3, gy4, ox, oy, te%
@@ -49,7 +51,7 @@
 1600 setupGameScreen
 1610 ON zz=4
 1615 LET dungeonLevel=1
-1620 exploreDungeon c, pw, tx, ty, dungeonLevel, luckyNumber, dng%
+1620 exploreDungeon c, pw, w$, tx, ty, dungeonLevel, luckyNumber, dng%
 1625 ON zz=5
 1627 visitCastle haveVisited
 1628 setupGameScreen
@@ -95,8 +97,6 @@
 9210 LET i$=INKEY$(-1)
 9220 IF i$<>"F" AND i$<>"M" THEN GO TO 9210
 9230 LET pt$=i$: PRINT i$
-9240 LET tx=INT(RND(1 TO 19))
-9250 LET ty=INT(RND(1 TO 19))
 9260 END DEFine initPlayer
 10000 REMark Initial global variables / arrays
 10010 DIM w$(6,14): REMark Store-item labels
@@ -108,6 +108,8 @@
 10070 DIM PER%(10,3): REMark Perspective lookup tables
 10075 DIM CD%(10,3): REMark Centre door perspective
 10076 DIM LD%(10,5): REMark Left/ right door perspective
+10077 DIM FT%(10,5): REMark Trapdoor/ hole in floor
+10078 DIM LAD%(10,3): REMark Ladder
 10080 DIM te%(20,20): REMark Overland map
 10090 DIM m$(10,15): REMark Monster labels
 10100 DIM ML%(10,1), MZ%(10,1): REMark Monster attributes
@@ -129,6 +131,12 @@
 10350 READ c$(n)
 10360 END FOR n
 10370 END DEFine initCharLab
+10382 LET dungeonLevel=dungeonLevel+1: PRINT #0, "GO DOWN TO LEVEL "; dungeonLevel: initDungeon tx, ty, dungeonLevel, luckyNumber, dng%
+10383 ON locum=8
+10384 LET dungeonLevel=dungeonLevel-1: IF dungeonLevel=0 THEN PRINT #0, "LEAVE DUNGEON": EXIT exploreDungeon: ELSE PRINT #0, "GO DOWN TO LEVEL "; dungeonLevel: initDungeon tx, ty, dungeonLevel, luckyNumber, dng%
+10385 ON locum=REMAINDER 
+10386 PRINT "HUH?"
+10387 END SELect 
 10390 DATA "HIT POINTS.....","STRENGTH.......","DEXTERITY......","STAMINA........","WISDOM.........","GOLD..........."
 10400 REMark Initialise store-item labels
 10410 DEFine PROCedure initStoreLab(w$)
@@ -161,10 +169,19 @@
 10670 LET LD%(n,0) = (PER%(n,0) * 2 + PER%(n + 1,0)) / 3: LET LD%(n,1) = (PER%(n,0) + 2 * PER%(n + 1,0)) / 3: LET W = LD%(n,0) - PER%(n,0)
 10671 LET LD%(n,2) = PER%(n,2) - W / 1.6 : LD%(n,3) = PER%(n,2) - 2 * W / 1.6: LET LD%(n,4) = (PER%(n,3) * 2 + PER%(n + 1,3)) / 3: LET LD%(n,5) = (PER%(n,3) + 2 * PER%(n + 1,3)) / 3
 10672 LET LD%(n,2) = LD%(n,4) - (LD%(n,4) - LD%(n,2))*.8: LET LD%(n,3) = LD%(n,5)-(LD%(n,5) - LD%(n,3)) *.8: IF LD%(n,3) = LD%(n,4) THEN LET LD%(n,3) = LD%(n,3) + 1: END IF 
-10680 END FOR n
+10673 END FOR n
+10680 REMark Pre-compute coordinates of trapdoor/ hole in floor
+10681 FOR n=0 TO 9
+10682 LET FT%(n,0) = 80 - XX%(n)/3 : LET FT%(n,1) = 80 + XX%(n)/3 : LET FT%(n,2) = 80 - XX%(n+1)/3 : LET FT%(n,3) = 80 + XX%(n+1)/3
+10683 LET FT%(n,4) = 50 - (YY%(n) * 2 + YY%(n + 1)) / 3: LET FT%(n,5) = 50 - (YY%(n) + 2 * YY%(n + 1)) / 3
+10684 END FOR n
+10685 REMark Pre-compute coordinates of ladder
+10686 FOR n=0 TO 9
+10687 LET LAD%(n,0) = (FT%(n,0)*2 + FT%(n,1)) / 3: LET LAD%(n,1) = (FT%(n,0) + 2*FT%(n,1))/3 : LET LAD%(n,3) = FT%(n,4) : LET LAD%(n,2) = 100 - LAD%(n,3)
+10688 END FOR n
 10690 END DEFine setupTables
 10700 REMark Initialise overland map
-10710 DEFine PROCedure initMap(te%)
+10710 DEFine PROCedure initMap(te%, tx, ty)
 10715 REMark Key: 0-blank; 1-mountain; 2-refuge; 3-town; 4-dungeon; 5-castle
 10720 LOCal m, n, obj
 10730 PRINT #0; " (PLEASE WAIT)";
@@ -183,6 +200,9 @@
 10850 te%(INT(RND(1 TO 19)), INT(RND(1 TO 19)))=3
 10860 REMark PLACE LORD BRITAIN'S CASTLE
 10870 te%(INT(RND(1 TO 19)), INT(RND(1 TO 19)))=5
+10875 REMark Set start position for player
+10876 LET tx=INT(RND(1 TO 19))
+10877 LET ty=INT(RND(1 TO 19))
 10880 CLS #0
 10890 END DEFine initMap
 10900 REMark Initialise monster labels
@@ -281,13 +301,13 @@
 11970 CLS #3
 11990 END DEFine setupGameScreen
 12000 REMark Init menu screen
-12010 DEFine PROCedure initMenuScreen
+12010 DEFine PROCedure initMenuScreen(fg, bg)
 12020 MODE 8
 12030 WINDOW #0, 448,30,32,226
-12040 PAPER #0, 0: INK #0, 7: BORDER #0
+12040 PAPER #0, bg: INK #0, fg: BORDER #0
 12050 OPEN #1, CON_448X210A32X16_128
-12060 PAPER #1, 0: INK #1, 7: BORDER #1
-12070 OPEN #3, CON: PAPER #3, 0: INK #3, 7: CLS #3
+12060 PAPER #1, bg: INK #1, fg: BORDER #1
+12070 OPEN #3, CON: PAPER #3, bg: INK #3, fg: CLS #3
 12090 END DEFine initMenuScreen
 12100 REMark Menu screen configuration
 12110 DEFine PROCedure setupMenuScreen
@@ -335,7 +355,7 @@
 12700 LET temp$=INKEY$(-1): IF temp$<>" " THEN GO TO 12700: END IF 
 12710 END DEFine endGame
 12800 REMark Explore dungeon
-12810 DEFine PROCedure exploreDungeon(c, pw, tx, ty, dungeonLevel, luckyNumber, dng%)
+12810 DEFine PROCedure exploreDungeon(c, pw, w$, tx, ty, dungeonLevel, luckyNumber, dng%)
 12815 LOCal PX, PY, dx, dy, keyPress, haveMoved
 12820 PRINT #0, "GO DUNGEON"
 12830 PRINT #0, "PLEASE WAIT"
@@ -343,7 +363,7 @@
 12845 setupGameScreen
 12850 LET PX=1: LET PY=1: REMark Posn in dungeon
 12860 LET dx=1: LET dy=0: REMark Direction facing in dungeon
-12870 LET haveMoved=0: REMark Flag to trigger test for traps, chest, etc.
+12870 LET hasMoved=0: REMark Flag to trigger test for traps, chest, etc.
 12880 REPeat dungeonLoop
 12890 LET pw(0)=pw(0)-.1: REMark Consume food
 12895 IF pw(0)<0 THEN LET c(0)=0: PRINT #0, "YOU HAVE STARVED!!!!!": END IF 
@@ -355,7 +375,7 @@
 12940 SELect ON keyPress
 12950 ON keyPress = 208
 12960 PRINT #0, "FORWARD"
-12970 IF dng%(PX+dx, PY+dy) <> 1 AND dng%(PX+dx, PY+dy) < 10 THEN LET PX=PX+dx :LET PY=PY+dy: LET haveMoved=1: END IF 
+12970 IF dng%(PX+dx, PY+dy) <> 1 AND dng%(PX+dx, PY+dy) < 10 THEN LET PX=PX+dx :LET PY=PY+dy: LET hasMoved=1: END IF 
 12980 ON keyPress = 216
 12990 PRINT #0, "TURN AROUND"
 13000 LET dx=-dx: LET dy=-dy
@@ -366,17 +386,36 @@
 13050 PRINT #0, "TURN RIGHT"
 13060 IF dx <> 0 THEN LET dy=-dx: LET dx=0: ELSE LET dx=dy: LET dy=0: END IF 
 13070 ON keyPress=CODE("X")
-13080 PRINT #0, "CHANGE LEVEL NOT IMPLEMENTED"
+13079 LET locum=dng%(PX,PY)
+13080 SELect ON locum
+13081 ON locum=7, 9
+13082 LET dungeonLevel=dungeonLevel+1: PRINT #0, "GO DOWN TO LEVEL "; dungeonLevel: initDungeon tx, ty, dungeonLevel, luckyNumber, dng%
+13083 ON locum=8
+13084 LET dungeonLevel=dungeonLevel-1: IF dungeonLevel=0 THEN PRINT #0, "LEAVE DUNGEON": ELSE PRINT #0, "GO UP TO LEVEL "; dungeonLevel: initDungeon tx, ty, dungeonLevel, luckyNumber, dng%
+13085 ON locum=REMAINDER 
+13086 PRINT #0, "HUH?"
+13087 END SELect 
 13090 ON keyPress=CODE("A")
 13100 PRINT #0, "ATTACK NOT IMPLEMENTED"
 13110 ON keyPress=CODE("M")
 13120 printDungeonMap dng%, PX, PY
 13130 END SELect 
+13140 IF dungeonLevel=0 THEN RETurn : END IF 
+13150 REMark Check for chest
+13160 IF hasMoved=1 AND dng%(PX, PY)=5 THEN 
+13170 LET dng%(PX,PY)=0: PRINT #0, "GOLD!!!!!"
+13175 LET tmp=RND(4)*dungeonLevel+3: LET c(5)=c(5)+tmp
+13176 PRINT #0, tmp; "-PIECES OF EIGHT"
+13177 LET tmp=RND(5): LET pw(tmp)=pw(tmp)+1
+13178 PRINT #0, "AND A "; w$(tmp)
+13179 END IF 
+13180 REMark Check for trap
 13280 END REPeat dungeonLoop
 13290 END DEFine exploreDungeon
 13300 REMark Initialise dungeon level
 13310 DEFine PROCedure initDungeon(tx, ty, dungeonLevel, luckyNumber, dng%)
 13320 LOCal m, n
+13322 RANDOMISE (luckyNumber+10*tx+100*ty+1000*dungeonLevel)
 13325 REMark Clear dungeon level
 13330 FOR m=1 TO 9
 13331 FOR n=1 TO 9
@@ -415,34 +454,42 @@
 13800 REMark Display view of dungeon
 13810 DEFine PROCedure displayDungeonView(dng%, PX, PY, dx, dy, PER%, CD%, LD%)
 13820 LOCal distance, centre, left, right, monsters, L1, R1, T1, B1, L2, R2, T2, B2
-13830 CLS #1
-13840 LET distance=0: REMark Render dungeon from near to far
-13850 REPeat drawDungeon
-13860 LET centre=dng%(PX+dx*distance, PY+dy*distance)
-13870 LET left=  dng%(PX+dx*distance-dy, PY+dy*distance+dx)
-13880 LET right= dng%(PX+dx*distance+dy, PY+dy*distance-dx)
-13890 AT distance+1,0
-13900 PRINT distance; " "; left; " "; centre; " "; right
-13910 REMark Extract and remove monsters from view
-13920 LET monsters=INT(centre/10)
-13930 LET centre = centre MOD 10
-13940 LET left = left MOD 10
-13950 LET right = right MOD 10
-13960 LET L1 = PER%(distance,0): LET R1 = PER%(distance,1): LET T1 = PER%(distance,2): LET B1 = PER%(distance,3):
-13970 LET L2 = PER%(distance + 1,0): LET R2 = PER%(distance + 1,1): LET T2 = PER%(distance + 1,2): LET B2 = PER%(distance + 1,3)
-13980 REMark Check if we are done
-13990 IF distance>0 AND (centre=1 OR centre=3) THEN LINE L1,T1 TO R1,T1 TO R1,B1 TO L1,B1 TO L1,T1: EXIT drawDungeon: END IF 
-14000 IF distance>0 AND centre=4 THEN LINE L1,T1 TO R1,T1 TO R1,B1 TO L1,B1 TO L1,T1: LINE CD%(distance,0),CD%(distance,3) TO CD%(distance,0),CD%(distance,2) TO CD%(distance,1),CD%(distance,2) TO CD%(distance,1),CD%(distance,3): EXIT drawDungeon: END IF 
-14010 REMark Check for wall and door on left
-14020 IF (left=1 OR left=3 OR left=4) THEN LINE L1,T1 TO L2,T2: LINE L1,B1 TO L2,B2: END IF 
-14030 IF left=4 THEN IF distance>0 THEN LINE LD%(distance,0),LD%(distance,4) TO LD%(distance,0),LD%(distance,2) TO LD%(distance,1),LD%(distance,3) TO LD%(distance,1),LD%(distance,5): ELSE LINE 0,LD%(distance,2)+3 TO LD%(distance,1),LD%(distance,3) TO LD%(distance,1),LD%(distance,5): END IF : END IF 
-14040 REMark Check for wall and door on right
-14050 IF (right=1 OR right=3 OR right=4) THEN LINE R1,T1 TO R2,T2: LINE R1,B1 TO R2,B2: END IF 
-14060 IF right=4 THEN IF distance>0 THEN LINE 160-LD%(distance,0),LD%(distance,4) TO 160-LD%(distance,0),LD%(distance,2) TO 160-LD%(distance,1),LD%(distance,3) TO 160-LD%(distance,1),LD%(distance,5): ELSE LINE 160,LD%(distance,2)+3 TO 160-LD%(distance,1),LD%(distance,3) TO 160-LD%(distance,1),LD%(distance,5): END IF : END IF 
-14070 REMark Check if facing a visible wall on left
-14080 IF NOT(left=1 OR left=3 OR left=4) THEN LINE L1,T2 TO L2,T2 TO L2,B2 TO L1,B2: IF distance>0 THEN LINE L1,T1 TO L1,B1: END IF : END IF 
-14090 REMark Check if facing a visible wall on right
-14100 IF NOT(right=1 OR right=3 OR right=4) THEN LINE R1,T2 TO R2,T2 TO R2,B2 TO R1,B2: IF distance>0 THEN LINE R1,T1 TO R1,B1: END IF : END IF 
+13825 CLS #1
+13830 LET distance=0: REMark Render dungeon from near to far
+13840 REPeat drawDungeon
+13850 LET centre=dng%(PX+dx*distance, PY+dy*distance)
+13852 LET left=  dng%(PX+dx*distance-dy, PY+dy*distance+dx)
+13854 LET right= dng%(PX+dx*distance+dy, PY+dy*distance-dx)
+13855 AT distance+1,0
+13856 PRINT distance; " "; left; " "; centre; " "; right
+13860 REMark Extract and remove monsters from view
+13870 LET monsters=INT(centre/10)
+13880 LET centre = centre MOD 10
+13890 LET left = left MOD 10
+13900 LET right = right MOD 10
+13901 LET L1 = PER%(distance,0): LET R1 = PER%(distance,1): LET T1 = PER%(distance,2): LET B1 = PER%(distance,3):
+13902 LET L2 = PER%(distance + 1,0): LET R2 = PER%(distance + 1,1): LET T2 = PER%(distance + 1,2): LET B2 = PER%(distance + 1,3)
+13910 REMark Check if we are done
+13920 IF distance>0 AND (centre=1 OR centre=3) THEN LINE L1,T1 TO R1,T1 TO R1,B1 TO L1,B1 TO L1,T1: EXIT drawDungeon: END IF 
+13930 IF distance>0 AND centre=4 THEN LINE L1,T1 TO R1,T1 TO R1,B1 TO L1,B1 TO L1,T1: LINE CD%(distance,0),CD%(distance,3) TO CD%(distance,0),CD%(distance,2) TO CD%(distance,1),CD%(distance,2) TO CD%(distance,1),CD%(distance,3): EXIT drawDungeon: END IF 
+13950 REMark Check for wall and door on left
+13960 IF (left=1 OR left=3 OR left=4) THEN LINE L1,T1 TO L2,T2: LINE L1,B1 TO L2,B2: END IF 
+13970 IF left=4 THEN IF distance>0 THEN LINE LD%(distance,0),LD%(distance,4) TO LD%(distance,0),LD%(distance,2) TO LD%(distance,1),LD%(distance,3) TO LD%(distance,1),LD%(distance,5): ELSE LINE 0,LD%(distance,2)+3 TO LD%(distance,1),LD%(distance,3) TO LD%(distance,1),LD%(distance,5): END IF : END IF 
+13980 REMark Check for wall and door on right
+13990 IF (right=1 OR right=3 OR right=4) THEN LINE R1,T1 TO R2,T2: LINE R1,B1 TO R2,B2: END IF 
+14000 IF right=4 THEN IF distance>0 THEN LINE 160-LD%(distance,0),LD%(distance,4) TO 160-LD%(distance,0),LD%(distance,2) TO 160-LD%(distance,1),LD%(distance,3) TO 160-LD%(distance,1),LD%(distance,5): ELSE LINE 160,LD%(distance,2)+3 TO 160-LD%(distance,1),LD%(distance,3) TO 160-LD%(distance,1),LD%(distance,5): END IF : END IF 
+14010 REMark Check if facing a visible wall on left
+14020 IF NOT(left=1 OR left=3 OR left=4) THEN LINE L1,T2 TO L2,T2 TO L2,B2 TO L1,B2: IF distance>0 THEN LINE L1,T1 TO L1,B1: END IF : END IF 
+14030 REMark Check if facing a visible wall on right
+14040 IF NOT(right=1 OR right=3 OR right=4) THEN LINE R1,T2 TO R2,T2 TO R2,B2 TO R1,B2: IF distance>0 THEN LINE R1,T1 TO R1,B1: END IF : END IF 
+14050 REMark Check if trapdoor/ hole is visible
+14060 IF (centre=7 OR centre=9) THEN LINE FT%(distance,0),FT%(distance,4) TO FT%(distance,2),FT%(distance,5) TO FT%(distance,3),FT%(distance,5) TO FT%(distance,1),FT%(distance,4) TO FT%(distance,0),FT%(distance,4): END IF 
+14070 IF centre=8 THEN LINE FT%(distance,0),100 - FT%(distance,4) TO FT%(distance,2),100 - FT%(distance,5) TO FT%(distance,3),100 - FT%(distance,5) TO FT%(distance,1),100 - FT%(distance,4) TO FT%(distance,0),100 - FT%(distance,4): END IF 
+14080 REMark check if ladder is visible
+14090 IF (centre=7 OR centre=8) THEN LET BA = LAD%(distance,3) : LET TP=LAD%(distance,2) : LET LX = LAD%(distance,0) : LET RX = LAD%(distance,1): LINE LX,BA TO LX,TP: LINE RX,TP TO RX,BA: LET Y1 = (BA*4 + TP)/5: :LET Y2 = (BA*3 + TP*2) / 5: LET Y3 = (BA * 2 + TP * 3)/5 : LET Y4 = (BA + TP * 4) / 5: LINE LX,Y1 TO RX,Y1: LINE LX,Y2 TO RX,Y2: LINE LX,Y3 TO RX,Y3: LINE LX,Y4 TO RX,Y4: END IF 
+14100 REMark Check if chest is visible
+14110 IF (distance>0 AND centre=5) THEN LINE 80-8/distance, PER%(distance,3) TO 80-8/distance, PER%(distance,3) + 8/distance TO 80 + 8/distance, PER%(distance,3) + 8/distance TO 80 + 8/distance, PER%(distance,3) TO 80 - 8/distance, PER%(distance,3): LINE 80-8/distance, PER%(distance,3)+8/distance TO 80-4/distance,PER%(distance,3)+12/distance TO 80+12/distance, PER%(distance,3)+12/distance TO 80 + 12/distance, PER%(distance,3) + 4/distance TO 80 + 8/distance, PER%(distance,3) : LINE 80 + 8/distance, PER%(distance,3) + 8/distance TO 80 + 12/distance,PER%(distance,3) + 12/distance: END IF 
+14120 IF (distance>0 AND centre=5) THEN PAPER #0, fg1: INK #0, bg1: PRINT #0, "CHEST!": PAPER #0, bg1: INK #0, fg1: END IF 
 14570 LET distance=distance+1
 14580 END REPeat drawDungeon
 14590 END DEFine displayDungeonView
