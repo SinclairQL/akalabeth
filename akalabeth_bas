@@ -5,7 +5,8 @@
 140 REMark 
 150 REMark Version 0.1, Incomplete first draft
 160 REMark Version 0.2, Overground navigation implemented
-170 REMark 
+170 REMark Version 0.3, Dungeon implemented
+180 REMark Version 0.4, Monsters implemented
 1000 REMark Initialisation
 1005 LET fg1=7: LET bg1=0
 1010 initMenuScreen fg1, bg1
@@ -51,7 +52,7 @@
 1600 setupGameScreen
 1610 ON zz=4
 1615 LET dungeonLevel=1
-1620 exploreDungeon c, pw, w$, tx, ty, dungeonLevel, luckyNumber, dng%
+1620 exploreDungeon tx, ty, dungeonLevel, luckyNumber, pt$
 1625 ON zz=5
 1627 visitCastle haveVisited
 1628 setupGameScreen
@@ -111,7 +112,7 @@
 10077 DIM FT%(10,5): REMark Trapdoor/ hole in floor
 10078 DIM LAD%(10,3): REMark Ladder
 10080 DIM te%(20,20): REMark Overland map
-10090 DIM m$(10,15): REMark Monster labels
+10090 DIM M$(10,15): REMark Monster labels
 10100 DIM ML%(10,1), MZ%(10,1): REMark Monster attributes
 10110 pt$="F": REMark Player type
 10120 LET gx=33: LET gx1=gx/5: LET gx2=2*gx/5: LET gx3=3*gx/5+1: LET gx4=4*gx/5+1
@@ -121,7 +122,7 @@
 10160 LET name$="THE PEASANT": REMark Player's name
 10170 LET task=0
 10180 LET dungeonLevel=0: REMark Dungeon level
-10190 DIM dng%(10,10): REMark Dungeon map
+10190 DIM dng%(10,10,1): REMark Dungeon map
 10290 RETurn 
 10300 REMark Initialise characteristics labels
 10310 DEFine PROCedure initCharLab(c$)
@@ -131,12 +132,6 @@
 10350 READ c$(n)
 10360 END FOR n
 10370 END DEFine initCharLab
-10382 LET dungeonLevel=dungeonLevel+1: PRINT #0, "GO DOWN TO LEVEL "; dungeonLevel: initDungeon tx, ty, dungeonLevel, luckyNumber, dng%
-10383 ON locum=8
-10384 LET dungeonLevel=dungeonLevel-1: IF dungeonLevel=0 THEN PRINT #0, "LEAVE DUNGEON": EXIT exploreDungeon: ELSE PRINT #0, "GO DOWN TO LEVEL "; dungeonLevel: initDungeon tx, ty, dungeonLevel, luckyNumber, dng%
-10385 ON locum=REMAINDER 
-10386 PRINT "HUH?"
-10387 END SELect 
 10390 DATA "HIT POINTS.....","STRENGTH.......","DEXTERITY......","STAMINA........","WISDOM.........","GOLD..........."
 10400 REMark Initialise store-item labels
 10410 DEFine PROCedure initStoreLab(w$)
@@ -304,9 +299,9 @@
 12010 DEFine PROCedure initMenuScreen(fg, bg)
 12020 MODE 8
 12030 WINDOW #0, 448,30,32,226
-12040 PAPER #0, bg: INK #0, fg: BORDER #0
+12040 PAPER #0, bg: INK #0, fg: BORDER #0: CLS #0
 12050 OPEN #1, CON_448X210A32X16_128
-12060 PAPER #1, bg: INK #1, fg: BORDER #1
+12060 PAPER #1, bg: INK #1, fg: BORDER #1: CLS #1
 12070 OPEN #3, CON: PAPER #3, bg: INK #3, fg: CLS #3
 12090 END DEFine initMenuScreen
 12100 REMark Menu screen configuration
@@ -354,117 +349,148 @@
 12690 PRINT #0, "TO INVOKE A MIRACLE OF RESSURECTION" \ "           <HIT ESC KEY>"
 12700 LET temp$=INKEY$(-1): IF temp$<>" " THEN GO TO 12700: END IF 
 12710 END DEFine endGame
+12799 REMark ===============
 12800 REMark Explore dungeon
-12810 DEFine PROCedure exploreDungeon(c, pw, w$, tx, ty, dungeonLevel, luckyNumber, dng%)
-12815 LOCal PX, PY, dx, dy, keyPress, haveMoved
+12801 REMark ===============
+12810 DEFine PROCedure exploreDungeon(tx, ty, dungeonLevel, luckyNumber, pt$)
+12815 LOCal PX, PY, dx, dy, keyPress, hasMoved
 12820 PRINT #0, "GO DUNGEON"
 12830 PRINT #0, "PLEASE WAIT"
-12840 initDungeon tx, ty, dungeonLevel, luckyNumber, dng%
+12840 initDungeon tx, ty, dungeonLevel, luckyNumber, level
 12845 setupGameScreen
 12850 LET PX=1: LET PY=1: REMark Posn in dungeon
 12860 LET dx=1: LET dy=0: REMark Direction facing in dungeon
-12870 LET hasMoved=0: REMark Flag to trigger test for traps, chest, etc.
-12880 REPeat dungeonLoop
+12870 REPeat dungeonLoop
+12880 LET hasMoved=0: REMark Flag to trigger test for traps, chest, etc.
 12890 LET pw(0)=pw(0)-.1: REMark Consume food
-12895 IF pw(0)<0 THEN LET c(0)=0: PRINT #0, "YOU HAVE STARVED!!!!!": END IF 
-12900 displayDungeonView dng%, PX, PY, dx, dy, PER%, CD%, LD%
+12895 IF pw(0)<0 THEN 
+12896   LET c(0)=0
+12897   PRINT #0, "YOU HAVE STARVED!!!!!"
+12898 END IF 
+12900 checkForAttack dng%, dungeonLevel, PX, PY, dx, dy
 12905 displayStats c, pw, PX, PY
-12910 REMark checkForAttack
+12910 displayDungeonView dng%, PX, PY, dx, dy, PER%, CD%, LD%
 12920 PRINT #0,"COMMAND? ";
 12930 keyPress = CODE(INKEY$(-1))
 12940 SELect ON keyPress
 12950 ON keyPress = 208
-12960 PRINT #0, "FORWARD"
-12970 IF dng%(PX+dx, PY+dy) <> 1 AND dng%(PX+dx, PY+dy) < 10 THEN LET PX=PX+dx :LET PY=PY+dy: LET hasMoved=1: END IF 
+12960   PRINT #0, "FORWARD"
+12970   IF dng%(PX+dx, PY+dy,0) <> 1 AND dng%(PX+dx, PY+dy,1)=0 THEN LET PX=PX+dx :LET PY=PY+dy: LET hasMoved=1: END IF 
 12980 ON keyPress = 216
-12990 PRINT #0, "TURN AROUND"
-13000 LET dx=-dx: LET dy=-dy
+12990   PRINT #0, "TURN AROUND"
+13000   LET dx=-dx: LET dy=-dy
 13010 ON keyPress=192
-13020 PRINT #0, "TURN LEFT"
-13030 IF dx <>0 THEN LET dy=dx: LET dx=0: ELSE LET dx=-dy: LET dy=0: END IF 
+13020   PRINT #0, "TURN LEFT"
+13030   IF dx <>0 THEN LET dy=dx: LET dx=0: ELSE LET dx=-dy: LET dy=0: END IF 
 13040 ON keyPress=200
-13050 PRINT #0, "TURN RIGHT"
-13060 IF dx <> 0 THEN LET dy=-dx: LET dx=0: ELSE LET dx=dy: LET dy=0: END IF 
+13050   PRINT #0, "TURN RIGHT"
+13060   IF dx <> 0 THEN LET dy=-dx: LET dx=0: ELSE LET dx=dy: LET dy=0: END IF 
 13070 ON keyPress=CODE("X")
-13079 LET locum=dng%(PX,PY)
-13080 SELect ON locum
-13081 ON locum=7, 9
-13082 LET dungeonLevel=dungeonLevel+1: PRINT #0, "GO DOWN TO LEVEL "; dungeonLevel: initDungeon tx, ty, dungeonLevel, luckyNumber, dng%
-13083 ON locum=8
-13084 LET dungeonLevel=dungeonLevel-1: IF dungeonLevel=0 THEN PRINT #0, "LEAVE DUNGEON": ELSE PRINT #0, "GO UP TO LEVEL "; dungeonLevel: initDungeon tx, ty, dungeonLevel, luckyNumber, dng%
-13085 ON locum=REMAINDER 
-13086 PRINT #0, "HUH?"
-13087 END SELect 
+13079   LET locum=dng%(PX,PY,0)
+13080   SELect ON locum
+13081   ON locum=7, 9
+13082     LET dungeonLevel=dungeonLevel+1: PRINT #0, "GO DOWN TO LEVEL "; dungeonLevel: initDungeon tx, ty, dungeonLevel, luckyNumber, level
+13083   ON locum=8
+13084     LET dungeonLevel=dungeonLevel-1: IF dungeonLevel=0 THEN PRINT #0, "LEAVE DUNGEON": ELSE PRINT #0, "GO UP TO LEVEL "; dungeonLevel: initDungeon tx, ty, dungeonLevel, luckyNumber, level
+13085   ON locum=REMAINDER 
+13086     PRINT #0, "HUH?"
+13087   END SELect 
 13090 ON keyPress=CODE("A")
-13100 PRINT #0, "ATTACK NOT IMPLEMENTED"
+13095   LET oldDungeonLevel=dungeonLevel: REMark Using amulet can change level
+13100   attackMonster pt$, dungeonLevel, PX, PY, dx, dy
+13103   IF oldDungeonLevel <> dungeonLevel THEN 
+13105     initDungeon tx, ty, dungeonLevel, luckyNumber, level
+13107   END IF 
 13110 ON keyPress=CODE("M")
-13120 printDungeonMap dng%, PX, PY
+13120   printDungeonMap dng%, PX, PY
 13130 END SELect 
-13140 IF dungeonLevel=0 THEN RETurn : END IF 
+13140 IF dungeonLevel=0 THEN 
+13141   RETurn 
+13142 END IF 
 13150 REMark Check for chest
-13160 IF hasMoved=1 AND dng%(PX, PY)=5 THEN 
-13170 LET dng%(PX,PY)=0: PRINT #0, "GOLD!!!!!"
-13175 LET tmp=RND(4)*dungeonLevel+3: LET c(5)=c(5)+tmp
-13176 PRINT #0, tmp; "-PIECES OF EIGHT"
-13177 LET tmp=RND(5): LET pw(tmp)=pw(tmp)+1
-13178 PRINT #0, "AND A "; w$(tmp)
+13160 IF hasMoved=1 AND dng%(PX, PY,0)=5 THEN 
+13170   LET dng%(PX,PY,0)=0: PRINT #0, "GOLD!!!!!"
+13175   LET tmp=RND(4)*dungeonLevel+3: LET c(5)=c(5)+tmp
+13176   PRINT #0, tmp; "-PIECES OF EIGHT"
+13177   LET tmp=RND(5): LET pw(tmp)=pw(tmp)+1
+13178   PRINT #0, "AND A "; w$(tmp): PAUSE 50
 13179 END IF 
 13180 REMark Check for trap
+13190 IF hasMoved=1 AND dng%(PX, PY,0)=2 THEN 
+13200   PRINT #0, "AAARRRGGGHHH!!! A TRAP!"
+13210   LET c(0)=c(0)-RND(3)*dungeonLevel+3
+13220   LET dungeonLevel=dungeonLevel+1
+13230   PRINT #0, "FALLING TO LEVEL "; dungeonLevel
+13240   initDungeon tx, ty, dungeonLevel, luckyNumber, level
+13250 END IF 
 13280 END REPeat dungeonLoop
 13290 END DEFine exploreDungeon
+13299 REMark ========================
 13300 REMark Initialise dungeon level
-13310 DEFine PROCedure initDungeon(tx, ty, dungeonLevel, luckyNumber, dng%)
+13301 REMark ========================
+13310 DEFine PROCedure initDungeon(tx, ty, dungeonLevel, luckyNumber, level)
 13320 LOCal m, n
 13322 RANDOMISE (luckyNumber+10*tx+100*ty+1000*dungeonLevel)
-13325 REMark Clear dungeon level
+13325 REMark Clear any previous dungeon-level data
 13330 FOR m=1 TO 9
 13331 FOR n=1 TO 9
-13332 LET dng%(m,n)=0
+13332 LET dng%(m,n,0)=0: LET dng%(m,n,1)=0
 13333 END FOR n
 13334 END FOR m
 13338 REMark Ensure boundary wall is complete
 13340 FOR n=0 TO 10
-13342 LET dng%(0,n)=1: LET dng%(10,n)=1: LET dng%(n,0)=1: LET dng%(n,10)=1
+13342 LET dng%(0,n,0)=1: LET dng%(10,n,0)=1: LET dng%(n,0,0)=1: LET dng%(n,10,0)=1
 13345 END FOR n
 13348 REMark Fill in interior walls
 13350 FOR m=2 TO 8 STEP 2
 13352 FOR n=1 TO 9
-13354 LET dng%(m,n)=1: LET dng%(n,m)=1
+13354 LET dng%(m,n,0)=1: LET dng%(n,m,0)=1
 13356 END FOR n
 13358 END FOR m
 13360 FOR m=2 TO 8 STEP 2
 13370 FOR n=1 TO 9 STEP 2
-13380 IF RND > .95 THEN LET dng%(m,n)=2
-13390 IF RND > .95 THEN LET dng%(n,m)=2
-13400 IF RND > .6 THEN LET dng%(m,n)=3
-13410 IF RND > .6 THEN LET dng%(n,m)=3
-13420 IF RND > .6 THEN LET dng%(m,n)=4
-13430 IF RND > .6 THEN LET dng%(n,m)=4
-13440 IF RND > .97 THEN LET dng%(m,n)=9: REMark Trap
-13450 IF RND > .97 THEN LET dng%(n,m)=9
-13460 IF RND > .94 THEN LET dng%(m,n)=5
-13470 IF RND > .94 THEN LET dng%(n,m)=5
+13380 IF RND > .6 THEN LET dng%(m,n,0)=3:END IF : REMark Hidden door
+13390 IF RND > .6 THEN LET dng%(n,m,0)=3:END IF 
+13400 IF RND > .6 THEN LET dng%(m,n,0)=4:END IF : REMark Door
+13410 IF RND > .6 THEN LET dng%(n,m,0)=4:END IF 
+13420 IF RND > .94 THEN LET dng%(m,n,0)=5:END IF 
+13430 IF RND > .94 THEN LET dng%(n,m,0)=5:END IF 
+13440 IF RND > .95 THEN LET dng%(m,n,0)=2:END IF : REMark Trap
+13450 IF RND > .95 THEN LET dng%(n,m,0)=2:END IF 
+13460 IF RND > .97 THEN LET dng%(m,n,0)=9:END IF : REMark Trapdoor
+13470 IF RND > .97 THEN LET dng%(n,m,0)=9:END IF 
 13480 END FOR n
 13490 END FOR m
-13500 LET dng%(2,1)=0: REMark Clear start position
-13510 IF dungeonLevel MOD 2 THEN LET dng%(7,3)=8: LET dng%(3,7)=7: ELSE LET dng%(7,3)=7: LET dng%(3,7)=8: END IF 
-13520 IF dungeonLevel=1 THEN LET dng%(7,3)=0: LET dng%(1,1)=8: END IF 
+13500 LET dng%(2,1,0)=0: REMark Clear start position
+13510 IF dungeonLevel MOD 2 THEN LET dng%(7,3,0)=8: LET dng%(3,7,0)=7: ELSE LET dng%(7,3,0)=7: LET dng%(3,7,0)=8: END IF 
+13520 IF dungeonLevel=1 THEN LET dng%(7,3,0)=0: LET dng%(1,1,0)=8: END IF 
 13530 REMark addMonsters
-13590 END DEFine initDungeon
+13540 FOR n=1 TO 10
+13550   LET MZ%(n,0) = 0: REMark Remove any previous monster
+13560   IF (n < dungeonLevel+2) AND RND < 0.6 THEN 
+13570     REPeat placeMonster
+13572       LET ML%(n,0)=RND(9)+1: LET ML%(n,1)=RND(9)+1
+13573       IF (dng%(ML%(n,0),ML%(n,1),0)=0) AND NOT(tx=ML%(n,0) AND ty=ML%(n,1)) THEN EXIT placeMonster
+13575     END REPeat placeMonster
+13580     LET dng%(ML%(n,0),ML%(n,1),1)=n+1: LET MZ%(n,0)=1
+13590     LET MZ%(n,1)=2*n+2*dungeonLevel*level
+13600   END IF 
+13610 END FOR n
+13620 END DEFine initDungeon
 13800 REMark Display view of dungeon
 13810 DEFine PROCedure displayDungeonView(dng%, PX, PY, dx, dy, PER%, CD%, LD%)
 13820 LOCal distance, centre, left, right, monsters, L1, R1, T1, B1, L2, R2, T2, B2
 13825 CLS #1
 13830 LET distance=0: REMark Render dungeon from near to far
 13840 REPeat drawDungeon
-13850 LET centre=dng%(PX+dx*distance, PY+dy*distance)
-13852 LET left=  dng%(PX+dx*distance-dy, PY+dy*distance+dx)
-13854 LET right= dng%(PX+dx*distance+dy, PY+dy*distance-dx)
+13850 LET centre=dng%(PX+dx*distance, PY+dy*distance,0)
+13852 LET left=  dng%(PX+dx*distance-dy, PY+dy*distance+dx,0)
+13854 LET right= dng%(PX+dx*distance+dy, PY+dy*distance-dx,0)
 13855 AT distance+1,0
-13856 PRINT distance; " "; left; " "; centre; " "; right
+13856 PRINT distance; " "; left; " "; dng%(PX+dx*distance, PY+dy*distance,1); " "; right
 13860 REMark Extract and remove monsters from view
-13870 LET monsters=INT(centre/10)
-13880 LET centre = centre MOD 10
+13870 REMark LET monsters=INT(centre/10)
+13880 REMark LET centre = centre MOD 10
 13890 LET left = left MOD 10
 13900 LET right = right MOD 10
 13901 LET L1 = PER%(distance,0): LET R1 = PER%(distance,1): LET T1 = PER%(distance,2): LET B1 = PER%(distance,3):
@@ -490,9 +516,199 @@
 14100 REMark Check if chest is visible
 14110 IF (distance>0 AND centre=5) THEN LINE 80-8/distance, PER%(distance,3) TO 80-8/distance, PER%(distance,3) + 8/distance TO 80 + 8/distance, PER%(distance,3) + 8/distance TO 80 + 8/distance, PER%(distance,3) TO 80 - 8/distance, PER%(distance,3): LINE 80-8/distance, PER%(distance,3)+8/distance TO 80-4/distance,PER%(distance,3)+12/distance TO 80+12/distance, PER%(distance,3)+12/distance TO 80 + 12/distance, PER%(distance,3) + 4/distance TO 80 + 8/distance, PER%(distance,3) : LINE 80 + 8/distance, PER%(distance,3) + 8/distance TO 80 + 12/distance,PER%(distance,3) + 12/distance: END IF 
 14120 IF (distance>0 AND centre=5) THEN PAPER #0, fg1: INK #0, bg1: PRINT #0, "CHEST!": PAPER #0, bg1: INK #0, fg1: END IF 
+14130 REMark Check for monsters
+14135 IF distance=0 THEN LET distance=distance+1: NEXT drawDungeon
+14140 LET mc=dng%(PX+dx*distance, PY+dy*distance, 1)
+14145 LET B1 = 50 - YY%(distance): LET B2 = 80
+14150 SELect ON mc
+14160 REMark Skeleton
+14170 =1,3,4
+14175   PRINT #0; m$(mc)
+14180   LINE B2-16/distance, B1 TO B2-10/distance, B1 TO B2-10/distance, B1+10/distance TO B2-5/distance, B1+20/distance TO B2+5/distance, B1+20/distance TO B2+10/distance, B1+10/distance TO B2+10/distance, B1 TO B2+16/distance, B1
+14190   LINE B2, B1+16/distance TO B2, B1+44/distance: LINE B2-2/distance, B1+22/distance TO B2+2/distance, B1+22/distance: LINE B2-3/distance, B1+30/distance TO B2+3/distance, B1+30/distance: LINE B2-5/distance, B1+36/distance TO B2+5/distance, B1+36/distance
+14200   LINE B2-23/distance, B1+39/distance TO B2-30/distance, B1+36/distance TO B2-23/distance, B1+30/distance TO B2-23/distance,B1+36/distance TO B2-8/distance, B1+26/distance
+14210   LINE B2-15/distance, B1+30/distance TO B2-8/distance, B1+40/distance TO B2+8/distance, B1+40/distance TO B2+15/distance, B1+30/distance TO B2+15/distance, B1+28/distance TO B2+15/distance, B1+38/distance: LINE B2+12/distance, B1+30/distance TO B2+20/distance, B1+30/distance
+14220   LINE B2,B1+50/distance TO B2-5/distance,B1+54/distance TO B2-8/distance,B1+50/distance TO B2-5/distance,B1+44/distance TO B2+5/distance, B1+44/distance TO B2+5/distance, B1+46/distance TO B2-5/distance,B1+46/distance TO B2-5/distance,B1+44/distance
+14230   LINE TO B2+5/distance,B1+44/distance TO B2+8/distance, B1+50/distance TO B2+5/distance, B1+54/distance TO B2-5/distance,B1+54/distance: LINE B2-5/distance,B1+48/distance TO B2+5/distance, B1+48/distance
+14240 REMark Thief
+14250 =2
+14255   PRINT #0; m$(mc)
+14260   LINE B2,B1+39/distance TO B2,B1+6/distance TO B2+10/distance,B1 TO B2+30/distance,B1 TO B2+30/distance,B1+30/distance TO B2+10/distance,B1+43/distance TO B2,B1+38/distance
+14270   LINE TO B2-10/distance,B1+43/distance TO B2-30/distance,B1+30/distance TO B2-30/distance,B1 TO B2-10/distance,B1 TO B2,B1+6/distance
+14280   LINE B2-10/distance,B1+43/distance TO B2-10/distance,B1+50/distance TO B2,B1+56/distance TO B2+10/distance,B1+50/distance TO B2,B1+52/distance TO B2-10/distance,B1+50/distance TO B2,B1+40/distance TO B2+10/distance,B1+50/distance TO B2+10/distance,B1+43/distance
+14300 END SELect 
 14570 LET distance=distance+1
 14580 END REPeat drawDungeon
 14590 END DEFine displayDungeonView
+14999 REMark ==================================
+15000 REMark Move monsters and check for attack
+15001 REMark ==================================
+15010 DEFine PROCedure checkForAttack(dng%, dungeonLevel, PX, PY, dx, dy)
+15020 LOCal n, range, x1, Y1, d
+15030 FOR n=1 TO 10
+15040 IF MZ%(n,0)=0: NEXT n: EXIT n: END IF 
+15050 LET range=SQRT((PX-ML%(n,0))^2 + (PY-ML%(n,1))^2)
+15060 REMark Check if monster will attack
+15070 IF (range<1.3 AND MZ%(n,1)>(dungeonLevel*level)) THEN 
+15080 REMark Attack
+15140 END IF 
+15150 REMark Move monster
+15160 LET x1=sgn(PX-ML%(n,0)): LET Y1=sgn(PY-ML%(n,1))
+15165 PRINT #0, n; " "; x1; " "; Y1
+15170 REMark If few health points, monster will run away
+15180 IF MZ%(n,1) < (dungeonLevel*level) THEN LET x1=-x1: LET Y1=-Y1: END IF 
+15190 IF ( Y1<>0 AND dng%(ML%(n,0),ML%(n,1)+Y1,0)<>1 AND dng%(ML%(n,0),ML%(n,1)+Y1,0)<>2 AND dng%(ML%(n,0),ML%(n,1)+Y1,1)=0 ) THEN LET x1=0: END IF 
+15210 IF ( x1<>0 AND dng%(ML%(n,0)+x1,ML%(n,1),0)<>1 AND dng%(ML%(n,0)+x1,ML%(n,1),0)<>2 AND dng%(ML%(n,0)+x1,ML%(n,1),1)=0 ) THEN LET Y1=0: END IF 
+15220 IF ((x1 OR Y1) AND NOT (ML%(n,0)+x1=PX AND ML%(n,1)+Y1=PY)) THEN LET dng%(ML%(n,0),ML%(n,1),1)=0: LET ML%(n,0)=ML%(n,0)+x1: LET ML%(n,1)=ML%(n,1)+Y1: LET dng%(ML%(n,0),ML%(n,1),1)=n: END IF 
+15230 REMark In original game, monster may rejuvinate at this point (Line 4083), if doesn't attack
+15240 END FOR n
+15990 END DEFine checkForAttack
+16000 REMark ==============
+16010 REMark Attack monster
+16020 REMark ==============
+16030 DEFine PROCedure attackMonster(pt$, dungeonLevel, PX, PY, dx, dy)
+16040 LOCal throwWeapon, weapon, keyPress, n, damage, amuletFunction, badEffect
+16050 REMark Choose weapon
+16060 LET weapon=-1
+16070 LET throwWeapon=0
+16080 REPeat chooseWeapon
+16090 PRINT #0, "ATTACK "
+16100 PRINT #0, "WHICH WEAPON "
+16110 LET keyPress = CODE(INKEY$(-1))
+16120 SELect ON keyPress
+16130 =82 : REMark "R"
+16140   PRINT #0, "RAPIER"
+16150   IF pw(1)=0 THEN 
+16160     PRINT #0, "NOT OWNED"
+16170   ELSE IF pt$="M" THEN 
+16180     PRINT #0, "MAGES CAN'T USE RAPIERS!"
+16190   ELSE 
+16200     LET weapon=1
+16210   END IF 
+16220 =65: REMark "A"
+16230   PRINT #0, "AXE"
+16240   IF pw(2)=0 THEN 
+16250     PRINT #0, "NOT OWNED"
+16260   ELSE 
+16270     LET weapon=2
+16280   END IF 
+16290 =83: REMark "S"
+16300   PRINT #0, "SHIELD"
+16310   IF pw(3)=0 THEN 
+16320     PRINT #0, "NOT OWNED"
+16330   ELSE 
+16340     LET weapon=3
+16350   END IF 
+16360 =66 : REMark "B"
+16370   PRINT #0, "BOW"
+16380   IF pw(4)=0 THEN 
+16390     PRINT #0, "NOT OWNED"
+16400   ELSE IF pt$="M" THEN 
+16410     PRINT #0, "MAGES CAN'T USE BOWS!"
+16420   ELSE 
+16430     LET weapon=4
+16440 END IF 
+16450 =77 : REMark "M"
+16460   PRINT #0, "MAGIC AMULET"
+16470   IF pw(5)=0 THEN 
+16480   PRINT #0, "NOT OWNED"
+16490   ELSE 
+16500     LET weapon=5
+16510   END IF 
+16520 = REMAINDER 
+16530   PRINT #0, "HANDS"
+16540   LET weapon=0
+16550 END SELect 
+16560 IF weapon > -1 THEN 
+16570   EXIT chooseWeapon
+16580 END IF 
+16590 END REPeat chooseWeapon
+16600 REMark If axe, check if throw or swing
+16610 IF weapon=2 THEN 
+16620   PRINT #0, "TO THROW OR SWING:"
+16630   LET keyPress=CODE(INKEY$(-1))
+16640   IF keyPress=84 THEN 
+16650     LET throwWeapon=1
+16660     PRINT #0, "THROW"
+16665     LET pw(2)=pw(2)-1
+16670   ELSE 
+16680     LET throwWeapon=0
+16690     PRINT #0, "SWING"
+16700   END IF 
+16705 END IF 
+16710 REMark Try to find monster
+16720 IF NOT throwWeapon THEN 
+16730   monsterNumber=dng%(PX+dx, PY+dy, 1)
+16740 ELSE 
+16750   FOR n=1 TO 5
+16760     REMark Check for out-of-bounds
+16770     IF PX+dx*n < 1 OR PX+dx*n > 9 OR PY+dy*n < 1 OR PY+dy*n > 9 THEN EXIT n
+16780     monsterNumber=dng%(PX+n*dx, PY+n*dy, 1)
+16790     IF monsterNumber > 0 THEN EXIT n
+16800   END FOR n
+16810 END IF 
+16820 REMark Form of attack depends on weapon
+16830 SELect ON weapon
+16840 = 0 TO 4: REMark Standard weapon
+16850   IF monsterNumber=0 OR (c(2)-RND(25)) < (monsterNumber+dungeonLevel) THEN 
+16860     PRINT #0, "YOU MISSED"
+16870   ELSE 
+16880     LET damage = RND(W(weapon,2))+c(1)/5
+16890     PRINT #0, "HIT!!!"
+16900     LET MZ%(monsterNumber,1)=MZ%(monsterNumber,1)-damage
+16910     PRINT #0, m$(monsterNumber);"'S HIT POINTS="; MZ%(monsterNumber,1)
+16911     IF MZ%(monsterNumber,1) < 1 THEN 
+16912       PRINT #0, "THOU HAST KILLED A "; m$(monsterNumber)
+16913       PRINT #0, "THOU SHALT RECEIVE ";
+16914       LET reward=monsterNumber+dungeonLevel
+16915       PRINT #0, reward; " PIECES OF EIGHT"
+16916       LET c(5)=c(5)+reward
+16917       LET dng%(ML%(monsterNumber,0),ML%(monsterNumber,1),1)=0
+16918       LET MZ%(monsterNumber,0)=0
+16919     END IF 
+16920   END IF 
+16930 = 5: REMark Magic amulet
+16940   IF pt$="F" THEN 
+16950     LET amuletFunction=RND(3)+1
+16960   ELSE 
+16970     PRINT #0, "1-LADDER-UP","2-LADDER-DN": PRINT #0, "3-KILL","4-BAD??"
+16980     PRINT #0, "CHOICE ";
+16990     LET keyPress=CODE(INKEY$(-1))
+17000     IF keyPress<CODE("1") OR keyPress>CODE("4") THEN GO TO 16980
+17010     LET amuletFunction=keyPress-CODE("1")+1
+17020     PRINT #0, amuletFunction
+17030   END IF 
+17040   IF  RND > .75 THEN 
+17050     PRINT #0; "LAST CHARGE ON THIS AMULET!"
+17060     LET pw(5)=pw(5)-1
+17070     PAUSE 50
+17075   END IF 
+17080   SELect ON amuletFunction
+17090   = 1: REMark Ladder up
+17100     PRINT #0, "LADDER UP"
+17105     LET dungeonLevel=dungeonLevel-1
+17110   = 2: REMark Ladder down
+17120     PRINT #0, "LADDER DOWN"
+17125     LET dungeonLevel=dungeonLevel+1
+17130   = 3: REMark Magic attack
+17140     PRINT #0, "MAGIC ATTACK"
+17150     LET MZ%(monsterNumber,1)=MZ%(monsterNumber,1)-(10+dungeonLevel)
+17160   = 4: REMark Bad
+17170     LET badEffect=1+RND(2)
+17180     SELect ON badEffect
+17190     = 1:
+17200       PRINT #0, "YOU HAVE BEEN TURNED": PRINT #0, "INTO A TOAD!"
+17210       FOR n=0 TO 4: LET c(n)=3: END FOR n
+17220     = 2:
+17230       PRINT #0, "YOU HAVE BEEN TURNED": PRINT #0, "INTO A LIZARD MAN"
+17240       FOR n=0 TO 4: LET c(n)=INT(c(n)*2.5): END FOR n
+17250     = 3:
+17260       PRINT #0, "BACKFIRE"
+17270       LET c(0) = c(0)/2
+17280     END SELect 
+17290   END SELect 
+17300 END SELect 
+17990 END DEFine attackMonster
 20000 REMark Print number, fixed-width, right-justified
 20005 DEFine PROCedure printNum(value, length, channel)
 20010 LOCal v$, n
@@ -504,6 +720,7 @@
 20060 END IF 
 20070 PRINT #channel, v$;
 20080 END DEFine printNum
+20100 DEFine FuNction sgn(x): RETurn (x>0)-(x<0): END DEFine 
 30000 REMark TESTS
 30100 REMark Check Overland Map
 30110 DEFine PROCedure printMap(te%, tx, ty)
@@ -525,10 +742,19 @@
 30330 AT 0,0
 30340 FOR m=0 TO 10
 30350 FOR n=0 TO 10
-30360 LET zz=dng%(m,n)
-30370 IF zz THEN PRINT zz;: ELSE PRINT " ";: END IF 
+30360 LET zz=dng%(m,n,1)
+30370 IF zz THEN PRINT zz;: ELSE PRINT ".";: END IF 
 30380 END FOR n
 30390 PRINT
 30400 END FOR m
 30410 PAUSE -1
 30430 RETurn 
+30500 REMark Reset default screen layout (for TV mode)
+30510 WINDOW #0, 448, 40, 32, 216
+30520 PAPER #0, 0: INK #0, 7: BORDER #0
+30530 OPEN #1, CON_448x200a32x16_128
+30540 PAPER #1, 2: INK #1,7: BORDER #1: CLS #1
+30550 OPEN #2, CON_448x200a32x16_128
+30560 PAPER #2, 1: INK #2,7: BORDER #2: CLS #2
+30570 MODE 8
+30580 STOP
