@@ -1,0 +1,27 @@
+Version 0.6
+
+- Requires CAPS LOCK to be enabled. This is actually consistent with
+  original game.
+
+- Have only computed graphics for skeleton and thief. Other opponents
+  appear as skeleton.
+
+- Thief and gremlin special attack not implemented.
+
+- Enemy regeneration not implemented.
+
+- Various debugging information remains enabled.
+
+- Some minor issues with perspective in dungeon
+
+- Some top-level arrays treated as global or passed as procedure
+  arguments ambiguously.
+
+- Message wrapping is untidy.
+
+- Pause Message not implemented.
+
+- Handling of monster location to be refactored. Currently stored in two
+  different arrays that have to be kept in sync.
+
+- Source code needs tidying up.
