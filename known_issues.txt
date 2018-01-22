@@ -10,6 +10,8 @@ Version 0.6
 
 - Enemy regeneration not implemented.
 
+- Player does not receive additional hit points when leaving a dungeon.
+
 - Various debugging information remains enabled.
 
 - Some minor issues with perspective in dungeon
