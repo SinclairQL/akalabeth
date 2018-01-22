@@ -7,6 +7,8 @@
 160 REMark Version 0.2, Overground navigation implemented
 170 REMark Version 0.3, Dungeon implemented
 180 REMark Version 0.4, Monsters implemented
+190 REMark Version 0.5, Attack monsters implemented
+200 REMark Version 0.6, Monster attacks and tasks implemented
 1000 REMark Initialisation
 1005 LET fg1=7: LET bg1=0
 1010 initMenuScreen fg1, bg1
@@ -19,7 +21,7 @@
 1300 REMark Main game loop
 1310 REPeat gameLoop
 1315 setupMenuScreen
-1320 initPlayer luckyNumber, level, c, pt$: REMark Init player
+1320 initPlayer luckyNumber, level, c, pt$, haveVisited, task: REMark Init player
 1330 equipPlayer c$, c, w$
 1335 RANDOMISE luckyNumber
 1340 CLS #0: CLS #1
@@ -27,53 +29,53 @@
 1360 initMap te%, tx, ty: REMark Initialise overland map
 1365 setupGameScreen
 1370 REPeat turnLoop
-1380 printOvergroundLocal tx, ty, gx, gx1, gx2, gx3, gx4, gy, gy1, gy2, gy3, gy4, ox, oy, te%
-1390 displayStats c, pw, tx, ty
-1400 PRINT #0,"COMMAND? ";
-1410 keyPress = CODE(INKEY$(-1))
-1420 SELect ON keyPress
-1430 ON keyPress = 208
-1440 PRINT #0, "NORTH"
-1450 IF te%(tx, ty+1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS" : ELSE ty=ty+1: LET pw(0)=pw(0)-1
-1460 ON keyPress = 216
-1470 PRINT #0, "SOUTH"
-1480 IF te%(tx, ty-1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE ty=ty-1: LET pw(0)=pw(0)-1
-1490 ON keyPress=192
-1500 PRINT #0, "WEST"
-1510 IF te%(tx-1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx-1: LET pw(0)=pw(0)-1
-1520 ON keyPress=200
-1530 PRINT #0, "EAST"
-1540 IF te%(tx+1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx+1: LET pw(0)=pw(0)-1
-1550 ON keyPress=CODE("X")
-1560 LET zz=te%(tx,ty)
-1570 SELect ON zz
-1580 ON zz=3
-1590 equipPlayer c$, c, w$
-1600 setupGameScreen
-1610 ON zz=4
-1615 LET dungeonLevel=1
-1620 exploreDungeon tx, ty, dungeonLevel, luckyNumber, pt$
-1625 ON zz=5
-1627 visitCastle haveVisited
-1628 setupGameScreen
-1630 ON zz=REMAINDER 
-1640 PRINT #0, "HUH?"
-1650 END SELect 
-1660 ON keyPress=CODE("M")
-1665 PRINT #0, "MAP"
-1670 printMap te%, tx, ty
-1680 ON keyPress = REMAINDER 
-1690 PRINT #0, "HUH?"
-1695 END SELect 
-1700 IF pw(0)<0 THEN LET c(0)=0: PRINT #0, "YOU HAVE STARVED!!!!!"
-1710 IF c(0) <= 0 THEN endGame: EXIT turnLoop
+1380   printOvergroundLocal tx, ty, gx, gx1, gx2, gx3, gx4, gy, gy1, gy2, gy3, gy4, ox, oy, te%
+1390   displayStats c, pw, tx, ty
+1400   PRINT #0,"COMMAND? ";
+1410   keyPress = CODE(INKEY$(-1))
+1420   SELect ON keyPress
+1430   ON keyPress = 208
+1440     PRINT #0, "NORTH"
+1450     IF te%(tx, ty+1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS" : ELSE ty=ty+1: LET pw(0)=pw(0)-1
+1460   ON keyPress = 216
+1470     PRINT #0, "SOUTH"
+1480     IF te%(tx, ty-1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE ty=ty-1: LET pw(0)=pw(0)-1
+1490   ON keyPress=192
+1500     PRINT #0, "WEST"
+1510     IF te%(tx-1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx-1: LET pw(0)=pw(0)-1
+1520   ON keyPress=200
+1530     PRINT #0, "EAST"
+1540     IF te%(tx+1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx+1: LET pw(0)=pw(0)-1
+1550   ON keyPress=CODE("X")
+1560     LET zz=te%(tx,ty)
+1570     SELect ON zz
+1580     ON zz=3
+1590       equipPlayer c$, c, w$
+1600       setupGameScreen
+1610     ON zz=4
+1615       LET dungeonLevel=1
+1620       exploreDungeon tx, ty, dungeonLevel, luckyNumber, pt$, task
+1625     ON zz=5
+1627       visitCastle haveVisited
+1628       setupGameScreen
+1630     ON zz=REMAINDER 
+1640       PRINT #0, "HUH?"
+1650     END SELect 
+1660   ON keyPress=CODE("M")
+1665     PRINT #0, "MAP"
+1670     printMap te%, tx, ty
+1680   ON keyPress = REMAINDER 
+1690     PRINT #0, "HUH?"
+1695   END SELect 
+1700   IF pw(0)<0 THEN LET c(0)=0: PRINT #0, "YOU HAVE STARVED!!!!!"
+1710   IF c(0) <= 0 THEN endGame: EXIT turnLoop
 1740 END SELect 
 1750 END REPeat turnLoop
 1970 REMark EXIT gameLoop
 1980 END REPeat gameLoop
 1990 STOP
 9000 REMark Initialise player
-9010 DEFine PROCedure initPlayer(luckyNumber, level, c, pt$)
+9010 DEFine PROCedure initPlayer(luckyNumber, level, c, pt$, haveVisited, task)
 9020 LOCal n, i$
 9030 AT #1, 5, 0
 9040 INPUT #1, 'TYPE THY LUCKY NUMBER.....'; luckyNumber
@@ -83,10 +85,10 @@
 9080 CLS #1
 9090 AT 8,0
 9100 FOR n=0 TO 5
-9110 LET c(n)=INT(SQRT(RND)*21+4)
-9115 PRINT c$(n);
-9120 printNum c(n), 3, 1
-9130 PRINT \
+9110   LET c(n)=INT(SQRT(RND)*21+4)
+9115   PRINT c$(n);
+9120   printNum c(n), 3, 1
+9130   PRINT \
 9140 END FOR n
 9150 AT 15,0
 9160 PRINT "SHALT THOU PLAY WITH THESE QUANTITIES? ";
@@ -98,7 +100,9 @@
 9210 LET i$=INKEY$(-1)
 9220 IF i$<>"F" AND i$<>"M" THEN GO TO 9210
 9230 LET pt$=i$: PRINT i$
-9260 END DEFine initPlayer
+9240 LET haveVisited=0
+9250 LET task=0
+9290 END DEFine initPlayer
 10000 REMark Initial global variables / arrays
 10010 DIM w$(6,14): REMark Store-item labels
 10020 DIM W(5,3): REMark Store-item characteristics
@@ -112,7 +116,7 @@
 10077 DIM FT%(10,5): REMark Trapdoor/ hole in floor
 10078 DIM LAD%(10,3): REMark Ladder
 10080 DIM te%(20,20): REMark Overland map
-10090 DIM M$(10,15): REMark Monster labels
+10090 DIM m$(10,15): REMark Monster labels
 10100 DIM ML%(10,1), MZ%(10,1): REMark Monster attributes
 10110 pt$="F": REMark Player type
 10120 LET gx=33: LET gx1=gx/5: LET gx2=2*gx/5: LET gx3=3*gx/5+1: LET gx4=4*gx/5+1
@@ -316,28 +320,44 @@
 12215 LOCal i$, n
 12220 setupMenuScreen
 12230 IF haveVisited THEN 
-12240 IF task>0 THEN 
-12250 PRINT \\ name$ & " WHY HAST THOU RETURNED?"
-12260 PRINT "THOUGH MUST KILL A(N) "; m$(task)
-12270 PRINT "GO NOW AND COMPLETE THY TASK!" \ \ "       PRESS -SPACE- TO CONT."
-12280 PAUSE -1
-12285 END IF 
-12290 ELSE 
-12300 LET haveVisited=1
-12310 PRINT "WELCOME PEASANT INTO THE HALLS OF THE" \ "MIGHTY LORD BRITISH. HEREIN THOU MAY" \ "CHOOSE TO DARE BATTLE WITH THE EVIL" \ "CREATURES OF THE DEPTHS, FOR GREAT" \ "REWARD!"
-12320 INPUT \ "WHAT IS THY NAME PEASANT "; name$
-12330 PRINT "DOEST THOU WISH FOR GRAND ADVENTURE ? "
-12340 LET i$=INKEY$(-1)
-12350 IF i$<>"Y" THEN PRINT \ "THEN LEAVE AND BEGONE!": LET name$ = "":  LET haveVisited=0: PRINT #1, "       PRESS -SPACE- TO CONT.": PAUSE -1: RETurn : END IF 
-12360 PRINT "GOOD! THOU SHALT TRY TO BECOME A" \ "KNIGHT!!!" \\ "THY FIRST TASK IS TO GO INTO THE" \ "DUNGEONS AND TO RETURN ONLY AFTER" \ "KILLING A(N) ";
-12370 LET task=INT(c(4)/3): REMark Wisdom
-12380 PRINT m$(task)
-12390 PRINT \ "     GO NOW UPON THIS QUEST, AND MAY" \"LADY LUCK BE FAIR UNTO YOU....." \ ".....ALSO I, BRITISH, HAVE INCREASED" \ "EACH OF THY ATTRIBUTES BY ONE!"
-12400 FOR n=0 TO 5: LET c(n) = c(n) + 1 : END FOR n
-12410 PRINT #0, "       PRESS -SPACE- TO CONT."
-12420 PAUSE -1
-12480 END IF 
-12490 END DEFine visitCastle
+12240   IF task>0 THEN 
+12250     PRINT \\ name$ & " WHY HAST THOU RETURNED?"
+12260     PRINT "THOUGH MUST KILL A(N) "; m$(task)
+12270     PRINT "GO NOW AND COMPLETE THY TASK!" \ \ "       PRESS -SPACE- TO CONT."
+12280     PAUSE -1
+12290   ELSE 
+12300      PRINT : PRINT : PRINT : PRINT "AAHH!!....."; name$
+12370      PRINT : PRINT "THOU HAST ACOMPLISHED THY QUEST!"
+12380      IF ABS(task)=10 THEN 
+12381        CLS
+12382        AT 3,0
+12383        PRINT "LORD "; name$
+12384        PRINT "      THOU HAST PROVED THYSELF WORTHY"
+12385        PRINT "OF KNIGHTHOOD, CONTINUE PLAY IF THOU"
+12386        PRINT "DOTH WISH, BUT THOU HAST ACOMPLISHED"
+12387        PRINT "THE MAIN OBJECTIVE OF THIS GAME..."
+12388        PAUSE -1
+12390      ELSE 
+12400        PRINT "UNFORTUNATELY, THIS IS NOT ENOUGH TO": PRINT "BECOME A KNIGHT.":task =  ABS (task) + 1: PRINT : PRINT "NOW THOU MUST KILL A(N)"; m$(task)
+12410        PAUSE -1
+12420     END IF 
+12430   END IF 
+12440 ELSE 
+12450   LET haveVisited=1
+12460   PRINT "WELCOME PEASANT INTO THE HALLS OF THE" \ "MIGHTY LORD BRITISH. HEREIN THOU MAY" \ "CHOOSE TO DARE BATTLE WITH THE EVIL" \ "CREATURES OF THE DEPTHS, FOR GREAT" \ "REWARD!"
+12470   INPUT \ "WHAT IS THY NAME PEASANT "; name$
+12480   PRINT "DOEST THOU WISH FOR GRAND ADVENTURE ? "
+12490   LET i$=INKEY$(-1)
+12500   IF i$<>"Y" THEN PRINT \ "THEN LEAVE AND BEGONE!": LET name$ = "":  LET haveVisited=0: PRINT #1, "       PRESS -SPACE- TO CONT.": PAUSE -1: RETurn : END IF 
+12510   PRINT "GOOD! THOU SHALT TRY TO BECOME A" \ "KNIGHT!!!" \\ "THY FIRST TASK IS TO GO INTO THE" \ "DUNGEONS AND TO RETURN ONLY AFTER" \ "KILLING A(N) ";
+12520   LET task=INT(c(4)/3): REMark Wisdom
+12530   PRINT m$(task)
+12540   PRINT \ "     GO NOW UPON THIS QUEST, AND MAY" \"LADY LUCK BE FAIR UNTO YOU....." \ ".....ALSO I, BRITISH, HAVE INCREASED" \ "EACH OF THY ATTRIBUTES BY ONE!"
+12550   FOR n=0 TO 5: LET c(n) = c(n) + 1 : END FOR n
+12560   PRINT #0, "       PRESS -SPACE- TO CONT."
+12570   PAUSE -1
+12580 END IF 
+12590 END DEFine visitCastle
 12600 REMark End Game
 12610 DEFine PROCedure endGame
 12620 LOCal temp$
@@ -356,7 +376,7 @@
 12815 LOCal PX, PY, dx, dy, keyPress, hasMoved
 12820 PRINT #0, "GO DUNGEON"
 12830 PRINT #0, "PLEASE WAIT"
-12840 initDungeon tx, ty, dungeonLevel, luckyNumber, level
+12840 initDungeon dng%, tx, ty, dungeonLevel, luckyNumber, level
 12845 setupGameScreen
 12850 LET PX=1: LET PY=1: REMark Posn in dungeon
 12860 LET dx=1: LET dy=0: REMark Direction facing in dungeon
@@ -366,10 +386,15 @@
 12895 IF pw(0)<0 THEN 
 12896   LET c(0)=0
 12897   PRINT #0, "YOU HAVE STARVED!!!!!"
-12898 END IF 
+12898   EXIT dungeonLoop
+12899 END IF 
 12900 checkForAttack dng%, dungeonLevel, PX, PY, dx, dy
-12905 displayStats c, pw, PX, PY
-12910 displayDungeonView dng%, PX, PY, dx, dy, PER%, CD%, LD%
+12901 REMark Check if have died
+12902 IF c(0)<=0
+12903   EXIT dungeonLoop
+12904 END IF 
+12905 displayDungeonView dng%, PX, PY, dx, dy, PER%, CD%, LD%
+12910 displayStats c, pw, PX, PY
 12920 PRINT #0,"COMMAND? ";
 12930 keyPress = CODE(INKEY$(-1))
 12940 SELect ON keyPress
@@ -389,9 +414,9 @@
 13079   LET locum=dng%(PX,PY,0)
 13080   SELect ON locum
 13081   ON locum=7, 9
-13082     LET dungeonLevel=dungeonLevel+1: PRINT #0, "GO DOWN TO LEVEL "; dungeonLevel: initDungeon tx, ty, dungeonLevel, luckyNumber, level
+13082     LET dungeonLevel=dungeonLevel+1: PRINT #0, "GO DOWN TO LEVEL "; dungeonLevel: initDungeon dng%, tx, ty, dungeonLevel, luckyNumber, level
 13083   ON locum=8
-13084     LET dungeonLevel=dungeonLevel-1: IF dungeonLevel=0 THEN PRINT #0, "LEAVE DUNGEON": ELSE PRINT #0, "GO UP TO LEVEL "; dungeonLevel: initDungeon tx, ty, dungeonLevel, luckyNumber, level
+13084     LET dungeonLevel=dungeonLevel-1: IF dungeonLevel=0 THEN PRINT #0, "LEAVE DUNGEON": ELSE PRINT #0, "GO UP TO LEVEL "; dungeonLevel: initDungeon dng%, tx, ty, dungeonLevel, luckyNumber, level
 13085   ON locum=REMAINDER 
 13086     PRINT #0, "HUH?"
 13087   END SELect 
@@ -399,7 +424,7 @@
 13095   LET oldDungeonLevel=dungeonLevel: REMark Using amulet can change level
 13100   attackMonster pt$, dungeonLevel, PX, PY, dx, dy
 13103   IF oldDungeonLevel <> dungeonLevel THEN 
-13105     initDungeon tx, ty, dungeonLevel, luckyNumber, level
+13105     initDungeon dng%, tx, ty, dungeonLevel, luckyNumber, level
 13107   END IF 
 13110 ON keyPress=CODE("M")
 13120   printDungeonMap dng%, PX, PY
@@ -421,147 +446,212 @@
 13210   LET c(0)=c(0)-RND(3)*dungeonLevel+3
 13220   LET dungeonLevel=dungeonLevel+1
 13230   PRINT #0, "FALLING TO LEVEL "; dungeonLevel
-13240   initDungeon tx, ty, dungeonLevel, luckyNumber, level
+13240   initDungeon dng%, tx, ty, dungeonLevel, luckyNumber, level
 13250 END IF 
 13280 END REPeat dungeonLoop
 13290 END DEFine exploreDungeon
 13299 REMark ========================
 13300 REMark Initialise dungeon level
 13301 REMark ========================
-13310 DEFine PROCedure initDungeon(tx, ty, dungeonLevel, luckyNumber, level)
+13310 DEFine PROCedure initDungeon(dng%, tx, ty, dungeonLevel, luckyNumber, level)
 13320 LOCal m, n
 13322 RANDOMISE (luckyNumber+10*tx+100*ty+1000*dungeonLevel)
 13325 REMark Clear any previous dungeon-level data
 13330 FOR m=1 TO 9
-13331 FOR n=1 TO 9
-13332 LET dng%(m,n,0)=0: LET dng%(m,n,1)=0
-13333 END FOR n
+13331   FOR n=1 TO 9
+13332     LET dng%(m,n,0)=0: LET dng%(m,n,1)=0
+13333   END FOR n
 13334 END FOR m
 13338 REMark Ensure boundary wall is complete
 13340 FOR n=0 TO 10
-13342 LET dng%(0,n,0)=1: LET dng%(10,n,0)=1: LET dng%(n,0,0)=1: LET dng%(n,10,0)=1
+13342   LET dng%(0,n,0)=1: LET dng%(10,n,0)=1: LET dng%(n,0,0)=1: LET dng%(n,10,0)=1
 13345 END FOR n
 13348 REMark Fill in interior walls
 13350 FOR m=2 TO 8 STEP 2
-13352 FOR n=1 TO 9
-13354 LET dng%(m,n,0)=1: LET dng%(n,m,0)=1
-13356 END FOR n
+13352   FOR n=1 TO 9
+13354     LET dng%(m,n,0)=1: LET dng%(n,m,0)=1
+13356   END FOR n
 13358 END FOR m
 13360 FOR m=2 TO 8 STEP 2
-13370 FOR n=1 TO 9 STEP 2
-13380 IF RND > .6 THEN LET dng%(m,n,0)=3:END IF : REMark Hidden door
-13390 IF RND > .6 THEN LET dng%(n,m,0)=3:END IF 
-13400 IF RND > .6 THEN LET dng%(m,n,0)=4:END IF : REMark Door
-13410 IF RND > .6 THEN LET dng%(n,m,0)=4:END IF 
-13420 IF RND > .94 THEN LET dng%(m,n,0)=5:END IF 
-13430 IF RND > .94 THEN LET dng%(n,m,0)=5:END IF 
-13440 IF RND > .95 THEN LET dng%(m,n,0)=2:END IF : REMark Trap
-13450 IF RND > .95 THEN LET dng%(n,m,0)=2:END IF 
-13460 IF RND > .97 THEN LET dng%(m,n,0)=9:END IF : REMark Trapdoor
-13470 IF RND > .97 THEN LET dng%(n,m,0)=9:END IF 
-13480 END FOR n
+13370   FOR n=1 TO 9 STEP 2
+13380     IF RND > .95 THEN LET dng%(m,n,0)=2:END IF : REMark Trap
+13390     IF RND > .95 THEN LET dng%(n,m,0)=2:END IF 
+13400     IF RND > .6 THEN LET dng%(m,n,0)=3:END IF : REMark Hidden door
+13410     IF RND > .6 THEN LET dng%(n,m,0)=3:END IF 
+13420     IF RND > .6 THEN LET dng%(m,n,0)=4:END IF : REMark Door
+13430     IF RND > .6 THEN LET dng%(n,m,0)=4:END IF 
+13440     IF RND > .97 THEN LET dng%(m,n,0)=9:END IF : REMark Trapdoor
+13450     IF RND > .97 THEN LET dng%(n,m,0)=9:END IF 
+13460     IF RND > .94 THEN LET dng%(m,n,0)=5:END IF : REMark Chest
+13470     IF RND > .94 THEN LET dng%(n,m,0)=5:END IF 
+13480   END FOR n
 13490 END FOR m
 13500 LET dng%(2,1,0)=0: REMark Clear start position
-13510 IF dungeonLevel MOD 2 THEN LET dng%(7,3,0)=8: LET dng%(3,7,0)=7: ELSE LET dng%(7,3,0)=7: LET dng%(3,7,0)=8: END IF 
+13510 IF dungeonLevel MOD 2 THEN 
+13512   LET dng%(7,3,0)=8: LET dng%(3,7,0)=7
+13514 ELSE 
+13516   LET dng%(7,3,0)=7: LET dng%(3,7,0)=8
+13518 END IF 
 13520 IF dungeonLevel=1 THEN LET dng%(7,3,0)=0: LET dng%(1,1,0)=8: END IF 
 13530 REMark addMonsters
 13540 FOR n=1 TO 10
-13550   LET MZ%(n,0) = 0: REMark Remove any previous monster
-13560   IF (n < dungeonLevel+2) AND RND < 0.6 THEN 
+13550   LET MZ%(n,0) = 0: LET MZ%(n,1)=0: REMark Remove any previous monster
+13560   IF (n < dungeonLevel+2) AND RND < .6 THEN 
 13570     REPeat placeMonster
 13572       LET ML%(n,0)=RND(9)+1: LET ML%(n,1)=RND(9)+1
 13573       IF (dng%(ML%(n,0),ML%(n,1),0)=0) AND NOT(tx=ML%(n,0) AND ty=ML%(n,1)) THEN EXIT placeMonster
 13575     END REPeat placeMonster
-13580     LET dng%(ML%(n,0),ML%(n,1),1)=n+1: LET MZ%(n,0)=1
+13580     LET dng%(ML%(n,0),ML%(n,1),1)=n
+13585     LET MZ%(n,0)=1
 13590     LET MZ%(n,1)=2*n+2*dungeonLevel*level
 13600   END IF 
 13610 END FOR n
 13620 END DEFine initDungeon
+13799 REMark =======================
 13800 REMark Display view of dungeon
+13801 REMark =======================
 13810 DEFine PROCedure displayDungeonView(dng%, PX, PY, dx, dy, PER%, CD%, LD%)
-13820 LOCal distance, centre, left, right, monsters, L1, R1, T1, B1, L2, R2, T2, B2
+13820 LOCal distance, centre, left, right, monsters, L1, R1, T1, B1, L2, R2, T2, B2, renderDone
 13825 CLS #1
 13830 LET distance=0: REMark Render dungeon from near to far
+13835 LET renderDone=0: REMark Flag to indicate have reached viewable distance
 13840 REPeat drawDungeon
-13850 LET centre=dng%(PX+dx*distance, PY+dy*distance,0)
-13852 LET left=  dng%(PX+dx*distance-dy, PY+dy*distance+dx,0)
-13854 LET right= dng%(PX+dx*distance+dy, PY+dy*distance-dx,0)
-13855 AT distance+1,0
-13856 PRINT distance; " "; left; " "; dng%(PX+dx*distance, PY+dy*distance,1); " "; right
-13860 REMark Extract and remove monsters from view
-13870 REMark LET monsters=INT(centre/10)
-13880 REMark LET centre = centre MOD 10
-13890 LET left = left MOD 10
-13900 LET right = right MOD 10
-13901 LET L1 = PER%(distance,0): LET R1 = PER%(distance,1): LET T1 = PER%(distance,2): LET B1 = PER%(distance,3):
-13902 LET L2 = PER%(distance + 1,0): LET R2 = PER%(distance + 1,1): LET T2 = PER%(distance + 1,2): LET B2 = PER%(distance + 1,3)
-13910 REMark Check if we are done
-13920 IF distance>0 AND (centre=1 OR centre=3) THEN LINE L1,T1 TO R1,T1 TO R1,B1 TO L1,B1 TO L1,T1: EXIT drawDungeon: END IF 
-13930 IF distance>0 AND centre=4 THEN LINE L1,T1 TO R1,T1 TO R1,B1 TO L1,B1 TO L1,T1: LINE CD%(distance,0),CD%(distance,3) TO CD%(distance,0),CD%(distance,2) TO CD%(distance,1),CD%(distance,2) TO CD%(distance,1),CD%(distance,3): EXIT drawDungeon: END IF 
-13950 REMark Check for wall and door on left
-13960 IF (left=1 OR left=3 OR left=4) THEN LINE L1,T1 TO L2,T2: LINE L1,B1 TO L2,B2: END IF 
-13970 IF left=4 THEN IF distance>0 THEN LINE LD%(distance,0),LD%(distance,4) TO LD%(distance,0),LD%(distance,2) TO LD%(distance,1),LD%(distance,3) TO LD%(distance,1),LD%(distance,5): ELSE LINE 0,LD%(distance,2)+3 TO LD%(distance,1),LD%(distance,3) TO LD%(distance,1),LD%(distance,5): END IF : END IF 
-13980 REMark Check for wall and door on right
-13990 IF (right=1 OR right=3 OR right=4) THEN LINE R1,T1 TO R2,T2: LINE R1,B1 TO R2,B2: END IF 
-14000 IF right=4 THEN IF distance>0 THEN LINE 160-LD%(distance,0),LD%(distance,4) TO 160-LD%(distance,0),LD%(distance,2) TO 160-LD%(distance,1),LD%(distance,3) TO 160-LD%(distance,1),LD%(distance,5): ELSE LINE 160,LD%(distance,2)+3 TO 160-LD%(distance,1),LD%(distance,3) TO 160-LD%(distance,1),LD%(distance,5): END IF : END IF 
-14010 REMark Check if facing a visible wall on left
-14020 IF NOT(left=1 OR left=3 OR left=4) THEN LINE L1,T2 TO L2,T2 TO L2,B2 TO L1,B2: IF distance>0 THEN LINE L1,T1 TO L1,B1: END IF : END IF 
-14030 REMark Check if facing a visible wall on right
-14040 IF NOT(right=1 OR right=3 OR right=4) THEN LINE R1,T2 TO R2,T2 TO R2,B2 TO R1,B2: IF distance>0 THEN LINE R1,T1 TO R1,B1: END IF : END IF 
-14050 REMark Check if trapdoor/ hole is visible
-14060 IF (centre=7 OR centre=9) THEN LINE FT%(distance,0),FT%(distance,4) TO FT%(distance,2),FT%(distance,5) TO FT%(distance,3),FT%(distance,5) TO FT%(distance,1),FT%(distance,4) TO FT%(distance,0),FT%(distance,4): END IF 
-14070 IF centre=8 THEN LINE FT%(distance,0),100 - FT%(distance,4) TO FT%(distance,2),100 - FT%(distance,5) TO FT%(distance,3),100 - FT%(distance,5) TO FT%(distance,1),100 - FT%(distance,4) TO FT%(distance,0),100 - FT%(distance,4): END IF 
-14080 REMark check if ladder is visible
-14090 IF (centre=7 OR centre=8) THEN LET BA = LAD%(distance,3) : LET TP=LAD%(distance,2) : LET LX = LAD%(distance,0) : LET RX = LAD%(distance,1): LINE LX,BA TO LX,TP: LINE RX,TP TO RX,BA: LET Y1 = (BA*4 + TP)/5: :LET Y2 = (BA*3 + TP*2) / 5: LET Y3 = (BA * 2 + TP * 3)/5 : LET Y4 = (BA + TP * 4) / 5: LINE LX,Y1 TO RX,Y1: LINE LX,Y2 TO RX,Y2: LINE LX,Y3 TO RX,Y3: LINE LX,Y4 TO RX,Y4: END IF 
-14100 REMark Check if chest is visible
-14110 IF (distance>0 AND centre=5) THEN LINE 80-8/distance, PER%(distance,3) TO 80-8/distance, PER%(distance,3) + 8/distance TO 80 + 8/distance, PER%(distance,3) + 8/distance TO 80 + 8/distance, PER%(distance,3) TO 80 - 8/distance, PER%(distance,3): LINE 80-8/distance, PER%(distance,3)+8/distance TO 80-4/distance,PER%(distance,3)+12/distance TO 80+12/distance, PER%(distance,3)+12/distance TO 80 + 12/distance, PER%(distance,3) + 4/distance TO 80 + 8/distance, PER%(distance,3) : LINE 80 + 8/distance, PER%(distance,3) + 8/distance TO 80 + 12/distance,PER%(distance,3) + 12/distance: END IF 
-14120 IF (distance>0 AND centre=5) THEN PAPER #0, fg1: INK #0, bg1: PRINT #0, "CHEST!": PAPER #0, bg1: INK #0, fg1: END IF 
-14130 REMark Check for monsters
-14135 IF distance=0 THEN LET distance=distance+1: NEXT drawDungeon
-14140 LET mc=dng%(PX+dx*distance, PY+dy*distance, 1)
-14145 LET B1 = 50 - YY%(distance): LET B2 = 80
-14150 SELect ON mc
-14160 REMark Skeleton
-14170 =1,3,4
-14175   PRINT #0; m$(mc)
-14180   LINE B2-16/distance, B1 TO B2-10/distance, B1 TO B2-10/distance, B1+10/distance TO B2-5/distance, B1+20/distance TO B2+5/distance, B1+20/distance TO B2+10/distance, B1+10/distance TO B2+10/distance, B1 TO B2+16/distance, B1
-14190   LINE B2, B1+16/distance TO B2, B1+44/distance: LINE B2-2/distance, B1+22/distance TO B2+2/distance, B1+22/distance: LINE B2-3/distance, B1+30/distance TO B2+3/distance, B1+30/distance: LINE B2-5/distance, B1+36/distance TO B2+5/distance, B1+36/distance
-14200   LINE B2-23/distance, B1+39/distance TO B2-30/distance, B1+36/distance TO B2-23/distance, B1+30/distance TO B2-23/distance,B1+36/distance TO B2-8/distance, B1+26/distance
-14210   LINE B2-15/distance, B1+30/distance TO B2-8/distance, B1+40/distance TO B2+8/distance, B1+40/distance TO B2+15/distance, B1+30/distance TO B2+15/distance, B1+28/distance TO B2+15/distance, B1+38/distance: LINE B2+12/distance, B1+30/distance TO B2+20/distance, B1+30/distance
-14220   LINE B2,B1+50/distance TO B2-5/distance,B1+54/distance TO B2-8/distance,B1+50/distance TO B2-5/distance,B1+44/distance TO B2+5/distance, B1+44/distance TO B2+5/distance, B1+46/distance TO B2-5/distance,B1+46/distance TO B2-5/distance,B1+44/distance
-14230   LINE TO B2+5/distance,B1+44/distance TO B2+8/distance, B1+50/distance TO B2+5/distance, B1+54/distance TO B2-5/distance,B1+54/distance: LINE B2-5/distance,B1+48/distance TO B2+5/distance, B1+48/distance
-14240 REMark Thief
-14250 =2
-14255   PRINT #0; m$(mc)
-14260   LINE B2,B1+39/distance TO B2,B1+6/distance TO B2+10/distance,B1 TO B2+30/distance,B1 TO B2+30/distance,B1+30/distance TO B2+10/distance,B1+43/distance TO B2,B1+38/distance
-14270   LINE TO B2-10/distance,B1+43/distance TO B2-30/distance,B1+30/distance TO B2-30/distance,B1 TO B2-10/distance,B1 TO B2,B1+6/distance
-14280   LINE B2-10/distance,B1+43/distance TO B2-10/distance,B1+50/distance TO B2,B1+56/distance TO B2+10/distance,B1+50/distance TO B2,B1+52/distance TO B2-10/distance,B1+50/distance TO B2,B1+40/distance TO B2+10/distance,B1+50/distance TO B2+10/distance,B1+43/distance
-14300 END SELect 
-14570 LET distance=distance+1
+13850   LET centre=dng%(PX+dx*distance, PY+dy*distance,0)
+13860   LET left=  dng%(PX+dx*distance-dy, PY+dy*distance+dx,0)
+13870   LET right= dng%(PX+dx*distance+dy, PY+dy*distance-dx,0)
+13880   LET L1 = PER%(distance,0): LET R1 = PER%(distance,1): LET T1 = PER%(distance,2): LET B1 = PER%(distance,3):
+13890   LET L2 = PER%(distance + 1,0): LET R2 = PER%(distance + 1,1): LET T2 = PER%(distance + 1,2): LET B2 = PER%(distance + 1,3)
+13900   REMark Check if we have reached end wall
+13920   IF distance>0 AND (centre=1 OR centre=3 OR centre=4) THEN 
+13925     LINE L1,T1 TO R1,T1 TO R1,B1 TO L1,B1 TO L1,T1
+13930     IF centre=4 THEN 
+13935       LINE CD%(distance,0),CD%(distance,3) TO CD%(distance,0),CD%(distance,2) TO CD%(distance,1),CD%(distance,2) TO CD%(distance,1),CD%(distance,3)
+13940     END IF 
+13945   LET renderDone=1
+13947   END IF 
+13948   IF NOT(renderDone) THEN 
+13950     REMark Check for wall and door on left
+13960     IF (left=1 OR left=3 OR left=4) THEN LINE L1,T1 TO L2,T2: LINE L1,B1 TO L2,B2
+13970     IF left=4 THEN 
+13972       IF distance>0 THEN 
+13974         LINE LD%(distance,0),LD%(distance,4) TO LD%(distance,0),LD%(distance,2) TO LD%(distance,1),LD%(distance,3) TO LD%(distance,1),LD%(distance,5)
+13976       ELSE 
+13977         LINE 0,LD%(distance,2)+3 TO LD%(distance,1),LD%(distance,3) TO LD%(distance,1),LD%(distance,5)
+13978       END IF 
+13979     END IF 
+13980     REMark Check for wall and door on right
+13990     IF (right=1 OR right=3 OR right=4) THEN LINE R1,T1 TO R2,T2: LINE R1,B1 TO R2,B2
+14000     IF right=4 THEN 
+14001       IF distance>0 THEN 
+14002         LINE 160-LD%(distance,0),LD%(distance,4) TO 160-LD%(distance,0),LD%(distance,2) TO 160-LD%(distance,1),LD%(distance,3) TO 160-LD%(distance,1),LD%(distance,5)
+14004       ELSE 
+14006         LINE 160,LD%(distance,2)+3 TO 160-LD%(distance,1),LD%(distance,3) TO 160-LD%(distance,1),LD%(distance,5)
+14008       END IF 
+14009     END IF 
+14010     REMark Check if facing a visible wall on left
+14020     IF NOT(left=1 OR left=3 OR left=4) THEN 
+14022       LINE L1,T2 TO L2,T2 TO L2,B2 TO L1,B2
+14024       IF distance>0 THEN 
+14026         LINE L1,T1 TO L1,B1
+14028       END IF 
+14029     END IF 
+14030     REMark Check if facing a visible wall on right
+14040     IF NOT(right=1 OR right=3 OR right=4) THEN 
+14042       LINE R1,T2 TO R2,T2 TO R2,B2 TO R1,B2
+14044       IF distance>0 THEN 
+14046         LINE R1,T1 TO R1,B1
+14048       END IF 
+14049     END IF 
+14050     REMark Check if trapdoor/ hole is visible
+14060     IF (centre=7 OR centre=9) THEN LINE FT%(distance,0),FT%(distance,4) TO FT%(distance,2),FT%(distance,5) TO FT%(distance,3),FT%(distance,5) TO FT%(distance,1),FT%(distance,4) TO FT%(distance,0),FT%(distance,4)
+14070     IF centre=8 THEN LINE FT%(distance,0),100 - FT%(distance,4) TO FT%(distance,2),100 - FT%(distance,5) TO FT%(distance,3),100 - FT%(distance,5) TO FT%(distance,1),100 - FT%(distance,4) TO FT%(distance,0),100 - FT%(distance,4)
+14080     REMark check if ladder is visible
+14090     IF (centre=7 OR centre=8) THEN LET BA = LAD%(distance,3) : LET TP=LAD%(distance,2) : LET LX = LAD%(distance,0) : LET RX = LAD%(distance,1): LINE LX,BA TO LX,TP: LINE RX,TP TO RX,BA: LET Y1 = (BA*4 + TP)/5: :LET Y2 = (BA*3 + TP*2) / 5: LET Y3 = (BA * 2 + TP * 3)/5 : LET Y4 = (BA + TP * 4) / 5: LINE LX,Y1 TO RX,Y1: LINE LX,Y2 TO RX,Y2: LINE LX,Y3 TO RX,Y3: LINE LX,Y4 TO RX,Y4
+14100     REMark Check if chest is visible
+14110     IF (distance>0 AND centre=5) THEN LINE 80-8/distance, PER%(distance,3) TO 80-8/distance, PER%(distance,3) + 8/distance TO 80 + 8/distance, PER%(distance,3) + 8/distance TO 80 + 8/distance, PER%(distance,3) TO 80 - 8/distance, PER%(distance,3): LINE 80-8/distance, PER%(distance,3)+8/distance TO 80-4/distance,PER%(distance,3)+12/distance TO 80+12/distance, PER%(distance,3)+12/distance TO 80 + 12/distance, PER%(distance,3) + 4/distance TO 80 + 8/distance, PER%(distance,3) : LINE 80 + 8/distance, PER%(distance,3) + 8/distance TO 80 + 12/distance,PER%(distance,3) + 12/distance
+14120     IF (distance>0 AND centre=5) THEN PAPER #0, fg1: INK #0, bg1: PRINT #0, "CHEST!": PAPER #0, bg1: INK #0, fg1
+14125   END IF 
+14130   REMark Check for monsters
+14135   IF distance>0 THEN 
+14140     LET mc=dng%(PX+dx*distance, PY+dy*distance, 1)
+14145     LET B1 = 50 - YY%(distance): LET B2 = 80
+14150     SELect ON mc
+14160     REMark Skeleton
+14170     =1,3 TO 10
+14175       PRINT #0; m$(mc)
+14180       LINE B2-16/distance, B1 TO B2-10/distance, B1 TO B2-10/distance, B1+10/distance TO B2-5/distance, B1+20/distance TO B2+5/distance, B1+20/distance TO B2+10/distance, B1+10/distance TO B2+10/distance, B1 TO B2+16/distance, B1
+14190       LINE B2, B1+16/distance TO B2, B1+44/distance: LINE B2-2/distance, B1+22/distance TO B2+2/distance, B1+22/distance: LINE B2-3/distance, B1+30/distance TO B2+3/distance, B1+30/distance: LINE B2-5/distance, B1+36/distance TO B2+5/distance, B1+36/distance
+14200       LINE B2-23/distance, B1+39/distance TO B2-30/distance, B1+36/distance TO B2-23/distance, B1+30/distance TO B2-23/distance,B1+36/distance TO B2-8/distance, B1+26/distance
+14210       LINE B2-15/distance, B1+30/distance TO B2-8/distance, B1+40/distance TO B2+8/distance, B1+40/distance TO B2+15/distance, B1+30/distance TO B2+15/distance, B1+28/distance TO B2+15/distance, B1+38/distance: LINE B2+12/distance, B1+30/distance TO B2+20/distance, B1+30/distance
+14220       LINE B2,B1+50/distance TO B2-5/distance,B1+54/distance TO B2-8/distance,B1+50/distance TO B2-5/distance,B1+44/distance TO B2+5/distance, B1+44/distance TO B2+5/distance, B1+46/distance TO B2-5/distance,B1+46/distance TO B2-5/distance,B1+44/distance
+14230       LINE TO B2+5/distance,B1+44/distance TO B2+8/distance, B1+50/distance TO B2+5/distance, B1+54/distance TO B2-5/distance,B1+54/distance: LINE B2-5/distance,B1+48/distance TO B2+5/distance, B1+48/distance
+14240     REMark Thief
+14250     =2
+14255       PRINT #0; m$(mc)
+14260       LINE B2,B1+39/distance TO B2,B1+6/distance TO B2+10/distance,B1 TO B2+30/distance,B1 TO B2+30/distance,B1+30/distance TO B2+10/distance,B1+43/distance TO B2,B1+38/distance
+14270       LINE TO B2-10/distance,B1+43/distance TO B2-30/distance,B1+30/distance TO B2-30/distance,B1 TO B2-10/distance,B1 TO B2,B1+6/distance
+14280       LINE B2-10/distance,B1+43/distance TO B2-10/distance,B1+50/distance TO B2,B1+56/distance TO B2+10/distance,B1+50/distance TO B2,B1+52/distance TO B2-10/distance,B1+50/distance TO B2,B1+40/distance TO B2+10/distance,B1+50/distance TO B2+10/distance,B1+43/distance
+14300     END SELect 
+14310   END IF 
+14570   LET distance=distance+1
+14575   IF renderDone=1 THEN EXIT drawDungeon
 14580 END REPeat drawDungeon
 14590 END DEFine displayDungeonView
 14999 REMark ==================================
 15000 REMark Move monsters and check for attack
 15001 REMark ==================================
 15010 DEFine PROCedure checkForAttack(dng%, dungeonLevel, PX, PY, dx, dy)
-15020 LOCal n, range, x1, Y1, d
+15020 LOCal n, range, x1, Y1, d, damage, tmp%
 15030 FOR n=1 TO 10
-15040 IF MZ%(n,0)=0: NEXT n: EXIT n: END IF 
-15050 LET range=SQRT((PX-ML%(n,0))^2 + (PY-ML%(n,1))^2)
-15060 REMark Check if monster will attack
-15070 IF (range<1.3 AND MZ%(n,1)>(dungeonLevel*level)) THEN 
-15080 REMark Attack
-15140 END IF 
-15150 REMark Move monster
-15160 LET x1=sgn(PX-ML%(n,0)): LET Y1=sgn(PY-ML%(n,1))
-15165 PRINT #0, n; " "; x1; " "; Y1
-15170 REMark If few health points, monster will run away
-15180 IF MZ%(n,1) < (dungeonLevel*level) THEN LET x1=-x1: LET Y1=-Y1: END IF 
-15190 IF ( Y1<>0 AND dng%(ML%(n,0),ML%(n,1)+Y1,0)<>1 AND dng%(ML%(n,0),ML%(n,1)+Y1,0)<>2 AND dng%(ML%(n,0),ML%(n,1)+Y1,1)=0 ) THEN LET x1=0: END IF 
-15210 IF ( x1<>0 AND dng%(ML%(n,0)+x1,ML%(n,1),0)<>1 AND dng%(ML%(n,0)+x1,ML%(n,1),0)<>2 AND dng%(ML%(n,0)+x1,ML%(n,1),1)=0 ) THEN LET Y1=0: END IF 
-15220 IF ((x1 OR Y1) AND NOT (ML%(n,0)+x1=PX AND ML%(n,1)+Y1=PY)) THEN LET dng%(ML%(n,0),ML%(n,1),1)=0: LET ML%(n,0)=ML%(n,0)+x1: LET ML%(n,1)=ML%(n,1)+Y1: LET dng%(ML%(n,0),ML%(n,1),1)=n: END IF 
-15230 REMark In original game, monster may rejuvinate at this point (Line 4083), if doesn't attack
-15240 END FOR n
+15040   IF MZ%(n,0)=0: NEXT n: EXIT n: REMark Skip if no monster
+15050   LET range=SQRT((PX-ML%(n,0))^2 + (PY-ML%(n,1))^2)
+15060   REMark Check if monster will attack
+15070   IF (range<1.3 AND MZ%(n,1)>(dungeonLevel*level)) THEN 
+15080     REMark Check type of attack
+15090     IF NOT (n=2 OR n=7) OR RND<.5 THEN 
+15100       PRINT #0, "YOU ARE BEING ATTACKED BY A "; m$(n)
+15110       IF (RND(20)-SGN(pw(3))-c(3)+n+dungeonLevel) < 0 THEN 
+15120         PRINT #0, "MISSED"
+15130       ELSE 
+15131         PRINT #0, "HIT"
+15132         LET damage=RND(n)+dungeonLevel
+15133         LET c(0)=c(0)-damage
+15134         NEXT n: EXIT n
+15135       END IF 
+15136     ELSE 
+15137       PRINT #0, "GREMLIN/ THIEF SPECIAL MOVE"
+15138       REMark Thief/ Gremlin special move not implemented
+15139     END IF 
+15140     NEXT n: EXIT n
+15145   END IF 
+15150   REMark Move monster
+15160   LET x1=SGN(PX-ML%(n,0)): LET Y1=SGN(PY-ML%(n,1))
+15170   REMark If few health points, monster will run away
+15180   IF MZ%(n,1) < (dungeonLevel*level) THEN LET x1=-x1: LET Y1=-Y1
+15190   IF Y1<>0 THEN 
+15200     LET tmp%=dng%(ML%(n,0),ML%(n,1)+Y1,0)
+15210     IF ( tmp%<>1 AND tmp%<>2 AND dng%(ML%(n,0),ML%(n,1)+Y1,1)=0 ) THEN 
+15220       LET x1=0
+15230     ELSE 
+15240       LET Y1=0
+15250     END IF 
+15260   END IF 
+15270   IF x1<>0 THEN 
+15280     LET tmp%=dng%(ML%(n,0)+x1,ML%(n,1),0)
+15290     IF ( tmp%<>1 AND tmp%<>2 AND dng%(ML%(n,0)+x1,ML%(n,1),1)=0 ) THEN 
+15300       LET Y1=0
+15310     ELSE 
+15320       LET x1=0
+15330     END IF 
+15340   END IF 
+15380   IF ((x1 OR Y1) AND NOT (ML%(n,0)+x1=PX AND ML%(n,1)+Y1=PY)) THEN 
+15390     LET dng%(ML%(n,0),ML%(n,1),1)=0
+15400     LET ML%(n,0)=ML%(n,0)+x1
+15410     LET ML%(n,1)=ML%(n,1)+Y1
+15420     LET dng%(ML%(n,0),ML%(n,1),1)=n
+15430   END IF 
+15440   REMark In original game, monster may rejuvinate at this point (Line 4083), if doesn't attack
+15450 END FOR n
 15990 END DEFine checkForAttack
 16000 REMark ==============
 16010 REMark Attack monster
@@ -657,15 +747,6 @@
 16890     PRINT #0, "HIT!!!"
 16900     LET MZ%(monsterNumber,1)=MZ%(monsterNumber,1)-damage
 16910     PRINT #0, m$(monsterNumber);"'S HIT POINTS="; MZ%(monsterNumber,1)
-16911     IF MZ%(monsterNumber,1) < 1 THEN 
-16912       PRINT #0, "THOU HAST KILLED A "; m$(monsterNumber)
-16913       PRINT #0, "THOU SHALT RECEIVE ";
-16914       LET reward=monsterNumber+dungeonLevel
-16915       PRINT #0, reward; " PIECES OF EIGHT"
-16916       LET c(5)=c(5)+reward
-16917       LET dng%(ML%(monsterNumber,0),ML%(monsterNumber,1),1)=0
-16918       LET MZ%(monsterNumber,0)=0
-16919     END IF 
 16920   END IF 
 16930 = 5: REMark Magic amulet
 16940   IF pt$="F" THEN 
@@ -708,6 +789,20 @@
 17280     END SELect 
 17290   END SELect 
 17300 END SELect 
+17310 REMark Check if monster killed
+17320 IF monsterNumber>0 AND MZ%(monsterNumber,1) < 1 THEN 
+17330   PRINT #0, "THOU HAST KILLED A "; m$(monsterNumber)
+17340   PRINT #0, "THOU SHALT RECEIVE ";
+17350   LET reward=monsterNumber+dungeonLevel
+17360   PRINT #0, reward; " PIECES OF EIGHT"
+17370   LET c(5)=c(5)+reward
+17380   LET dng%(ML%(monsterNumber,0),ML%(monsterNumber,1),1)=0
+17390   LET MZ%(monsterNumber,0)=0
+17400   REMark Check if has completed task
+17410   IF monsterNumber=task THEN 
+17420     LET task=-task
+17430   END IF 
+17440 END IF 
 17990 END DEFine attackMonster
 20000 REMark Print number, fixed-width, right-justified
 20005 DEFine PROCedure printNum(value, length, channel)
@@ -720,7 +815,16 @@
 20060 END IF 
 20070 PRINT #channel, v$;
 20080 END DEFine printNum
-20100 DEFine FuNction sgn(x): RETurn (x>0)-(x<0): END DEFine 
+20100 REMark Reset default screen layout (for TV mode)
+20110 WINDOW #0, 448, 40, 32, 216
+20120 PAPER #0, 0: INK #0, 7: BORDER #0
+20130 OPEN #1, CON_448x200a32x16_128
+20140 PAPER #1, 2: INK #1,7: BORDER #1: CLS #1
+20150 OPEN #2, CON_448x200a32x16_128
+20160 PAPER #2, 1: INK #2,7: BORDER #2: CLS #2
+20170 MODE 8
+20180 STOP
+20500 DEFine FuNction SGN(x): RETurn (x>0)-(x<0): END DEFine 
 30000 REMark TESTS
 30100 REMark Check Overland Map
 30110 DEFine PROCedure printMap(te%, tx, ty)
@@ -742,19 +846,10 @@
 30330 AT 0,0
 30340 FOR m=0 TO 10
 30350 FOR n=0 TO 10
-30360 LET zz=dng%(m,n,1)
-30370 IF zz THEN PRINT zz;: ELSE PRINT ".";: END IF 
+30360 LET zz=dng%(m,n,0)
+30370 IF zz THEN PRINT zz;: ELSE PRINT " ";: END IF 
 30380 END FOR n
 30390 PRINT
 30400 END FOR m
 30410 PAUSE -1
 30430 RETurn 
-30500 REMark Reset default screen layout (for TV mode)
-30510 WINDOW #0, 448, 40, 32, 216
-30520 PAPER #0, 0: INK #0, 7: BORDER #0
-30530 OPEN #1, CON_448x200a32x16_128
-30540 PAPER #1, 2: INK #1,7: BORDER #1: CLS #1
-30550 OPEN #2, CON_448x200a32x16_128
-30560 PAPER #2, 1: INK #2,7: BORDER #2: CLS #2
-30570 MODE 8
-30580 STOP
