@@ -6,11 +6,11 @@ Version 0.6
 - Have only computed graphics for skeleton and thief. Other opponents
   appear as skeleton.
 
-- Thief and gremlin special attack not implemented.
+- Thief and gremlin special attack not implemented. BETA IMPL
 
 - Enemy regeneration not implemented.
 
-- Player does not receive additional hit points when leaving a dungeon.
+- Player does not receive additional hit points when leaving a dungeon. DONE
 
 - Various debugging information remains enabled.
 
@@ -26,4 +26,4 @@ Version 0.6
 - Handling of monster location to be refactored. Currently stored in two
   different arrays that have to be kept in sync.
 
-- Source code needs tidying up.
+- Source code needs tidying up. MODEST PROGRESS
