@@ -20,56 +20,59 @@
 1150 initMonsterLab m$: REMark Set up monster labels
 1300 REMark Main game loop
 1310 REPeat gameLoop
-1315 setupMenuScreen
-1320 initPlayer luckyNumber, level, c, pt$, haveVisited, task: REMark Init player
-1330 equipPlayer c$, c, w$
-1335 RANDOMISE luckyNumber
-1340 CLS #0: CLS #1
-1350 AT 12,0: PRINT "WELCOME TO AKALABETH, WORLD OF DOOM!"
-1360 initMap te%, tx, ty: REMark Initialise overland map
-1365 setupGameScreen
-1370 REPeat turnLoop
-1380   printOvergroundLocal tx, ty, gx, gx1, gx2, gx3, gx4, gy, gy1, gy2, gy3, gy4, ox, oy, te%
-1390   displayStats c, pw, tx, ty
-1400   PRINT #0,"COMMAND? ";
-1410   keyPress = CODE(INKEY$(-1))
-1420   SELect ON keyPress
-1430   ON keyPress = 208
-1440     PRINT #0, "NORTH"
-1450     IF te%(tx, ty+1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS" : ELSE ty=ty+1: LET pw(0)=pw(0)-1
-1460   ON keyPress = 216
-1470     PRINT #0, "SOUTH"
-1480     IF te%(tx, ty-1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE ty=ty-1: LET pw(0)=pw(0)-1
-1490   ON keyPress=192
-1500     PRINT #0, "WEST"
-1510     IF te%(tx-1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx-1: LET pw(0)=pw(0)-1
-1520   ON keyPress=200
-1530     PRINT #0, "EAST"
-1540     IF te%(tx+1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx+1: LET pw(0)=pw(0)-1
-1550   ON keyPress=CODE("X")
-1560     LET zz=te%(tx,ty)
-1570     SELect ON zz
-1580     ON zz=3
-1590       equipPlayer c$, c, w$
-1600       setupGameScreen
-1610     ON zz=4
-1615       LET dungeonLevel=1
-1620       exploreDungeon tx, ty, dungeonLevel, luckyNumber, pt$, task
-1625     ON zz=5
-1627       visitCastle haveVisited
-1628       setupGameScreen
-1630     ON zz=REMAINDER 
-1640       PRINT #0, "HUH?"
-1650     END SELect 
-1660   ON keyPress=CODE("M")
-1665     PRINT #0, "MAP"
-1670     printMap te%, tx, ty
-1680   ON keyPress = REMAINDER 
-1690     PRINT #0, "HUH?"
-1695   END SELect 
+1315   setupMenuScreen
+1320   initPlayer luckyNumber, level, c, pt$, haveVisited, task: REMark Init player
+1330   equipPlayer c$, c, w$
+1335   RANDOMISE luckyNumber
+1340   CLS #0: CLS #1
+1350   AT 12,0: PRINT "WELCOME TO AKALABETH, WORLD OF DOOM!"
+1360   initMap te%, tx, ty: REMark Initialise overland map
+1365   setupGameScreen
+1370   REPeat turnLoop
+1380     printOvergroundLocal tx, ty, gx, gx1, gx2, gx3, gx4, gy, gy1, gy2, gy3, gy4, ox, oy, te%
+1390     displayStats c, pw, tx, ty
+1400     PRINT #0,"COMMAND? ";
+1410     keyPress = CODE(INKEY$(-1))
+1420     SELect ON keyPress
+1430     =208
+1440       PRINT #0, "NORTH"
+1450       IF te%(tx, ty+1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS" : ELSE ty=ty+1: LET pw(0)=pw(0)-1
+1460     =216
+1470       PRINT #0, "SOUTH"
+1480       IF te%(tx, ty-1)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE ty=ty-1: LET pw(0)=pw(0)-1
+1490     =192
+1500       PRINT #0, "WEST"
+1510       IF te%(tx-1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx-1: LET pw(0)=pw(0)-1
+1520     =200
+1530       PRINT #0, "EAST"
+1540       IF te%(tx+1, ty)=1 THEN PRINT #0, "YOU CAN'T PASS THE MOUNTAINS": ELSE tx=tx+1: LET pw(0)=pw(0)-1
+1550     =88,120
+1560       LET zz=te%(tx,ty)
+1570       SELect ON zz
+1580       ON zz=3
+1590         equipPlayer c$, c, w$
+1600         setupGameScreen
+1610       ON zz=4
+1615         LET dungeonLevel=1
+1617         LET hpBonus=0
+1620         exploreDungeon tx, ty, dungeonLevel, luckyNumber, pt$, task, hpBonus
+1622         PRINT #0, "THOU HAST GAINED "; hpBonus; " HIT POINTS"
+1623         LET c(0)=c(0)+hpBonus
+1624         LET hpBonus=0
+1625       ON zz=5
+1627         visitCastle haveVisited
+1628         setupGameScreen
+1630       ON zz=REMAINDER 
+1640         PRINT #0, "HUH?"
+1650       END SELect 
+1660     =77,109
+1665       PRINT #0, "MAP"
+1670       printMap te%, tx, ty
+1680     =REMAINDER 
+1690       PRINT #0, "HUH?"
+1695     END SELect 
 1700   IF pw(0)<0 THEN LET c(0)=0: PRINT #0, "YOU HAVE STARVED!!!!!"
 1710   IF c(0) <= 0 THEN endGame: EXIT turnLoop
-1740 END SELect 
 1750 END REPeat turnLoop
 1970 REMark EXIT gameLoop
 1980 END REPeat gameLoop
@@ -372,7 +375,7 @@
 12799 REMark ===============
 12800 REMark Explore dungeon
 12801 REMark ===============
-12810 DEFine PROCedure exploreDungeon(tx, ty, dungeonLevel, luckyNumber, pt$)
+12810 DEFine PROCedure exploreDungeon(tx, ty, dungeonLevel, luckyNumber, pt$, task, hpBonus)
 12815 LOCal PX, PY, dx, dy, keyPress, hasMoved
 12820 PRINT #0, "GO DUNGEON"
 12830 PRINT #0, "PLEASE WAIT"
@@ -422,7 +425,7 @@
 13087   END SELect 
 13090 ON keyPress=CODE("A")
 13095   LET oldDungeonLevel=dungeonLevel: REMark Using amulet can change level
-13100   attackMonster pt$, dungeonLevel, PX, PY, dx, dy
+13100   attackMonster pt$, dungeonLevel, PX, PY, dx, dy, hpBonus
 13103   IF oldDungeonLevel <> dungeonLevel THEN 
 13105     initDungeon dng%, tx, ty, dungeonLevel, luckyNumber, level
 13107   END IF 
@@ -601,7 +604,7 @@
 15000 REMark Move monsters and check for attack
 15001 REMark ==================================
 15010 DEFine PROCedure checkForAttack(dng%, dungeonLevel, PX, PY, dx, dy)
-15020 LOCal n, range, x1, Y1, d, damage, tmp%
+15020 LOCal n, range, x1, Y1, d, damage, tmp%, stolenItem
 15030 FOR n=1 TO 10
 15040   IF MZ%(n,0)=0: NEXT n: EXIT n: REMark Skip if no monster
 15050   LET range=SQRT((PX-ML%(n,0))^2 + (PY-ML%(n,1))^2)
@@ -612,51 +615,65 @@
 15100       PRINT #0, "YOU ARE BEING ATTACKED BY A "; m$(n)
 15110       IF (RND(20)-SGN(pw(3))-c(3)+n+dungeonLevel) < 0 THEN 
 15120         PRINT #0, "MISSED"
+15125         NEXT n: EXIT n
 15130       ELSE 
-15131         PRINT #0, "HIT"
-15132         LET damage=RND(n)+dungeonLevel
-15133         LET c(0)=c(0)-damage
-15134         NEXT n: EXIT n
-15135       END IF 
-15136     ELSE 
-15137       PRINT #0, "GREMLIN/ THIEF SPECIAL MOVE"
-15138       REMark Thief/ Gremlin special move not implemented
-15139     END IF 
-15140     NEXT n: EXIT n
-15145   END IF 
-15150   REMark Move monster
-15160   LET x1=SGN(PX-ML%(n,0)): LET Y1=SGN(PY-ML%(n,1))
-15170   REMark If few health points, monster will run away
-15180   IF MZ%(n,1) < (dungeonLevel*level) THEN LET x1=-x1: LET Y1=-Y1
-15190   IF Y1<>0 THEN 
-15200     LET tmp%=dng%(ML%(n,0),ML%(n,1)+Y1,0)
-15210     IF ( tmp%<>1 AND tmp%<>2 AND dng%(ML%(n,0),ML%(n,1)+Y1,1)=0 ) THEN 
-15220       LET x1=0
-15230     ELSE 
-15240       LET Y1=0
-15250     END IF 
-15260   END IF 
-15270   IF x1<>0 THEN 
-15280     LET tmp%=dng%(ML%(n,0)+x1,ML%(n,1),0)
-15290     IF ( tmp%<>1 AND tmp%<>2 AND dng%(ML%(n,0)+x1,ML%(n,1),1)=0 ) THEN 
-15300       LET Y1=0
-15310     ELSE 
-15320       LET x1=0
-15330     END IF 
-15340   END IF 
-15380   IF ((x1 OR Y1) AND NOT (ML%(n,0)+x1=PX AND ML%(n,1)+Y1=PY)) THEN 
-15390     LET dng%(ML%(n,0),ML%(n,1),1)=0
-15400     LET ML%(n,0)=ML%(n,0)+x1
-15410     LET ML%(n,1)=ML%(n,1)+Y1
-15420     LET dng%(ML%(n,0),ML%(n,1),1)=n
-15430   END IF 
-15440   REMark In original game, monster may rejuvinate at this point (Line 4083), if doesn't attack
-15450 END FOR n
+15140         PRINT #0, "HIT"
+15150         LET damage=RND(n)+dungeonLevel
+15160         LET c(0)=c(0)-damage
+15170         NEXT n: EXIT n
+15180       END IF 
+15190     ELSE 
+15210       IF n=7 THEN 
+15215         REMark Gremlin steals half your food
+15220         LET pw(0)=INT(pw(0)/2)
+15230         PRINT #0, "A GREMLIN STOLE SOME FOOD"
+15240       ELSE 
+15245         REMark Thief steals item from inventory
+15250         REPeat stealItem
+15256           LET stolenItem=RND(5)
+15260           IF pw(stolenItem) THEN 
+15261             EXIT stealItem
+15262           END IF 
+15270         END REPeat stealItem
+15280         PRINT #0, "A THIEF STOLE A "; w$(stolenItem)
+15290         LET pw(stolenItem)=pw(stolenItem)-1
+15295       END IF 
+15300     END IF 
+15310     NEXT n: EXIT n
+15320   END IF 
+15330   REMark Move monster
+15340   LET x1=SGN(PX-ML%(n,0)): LET Y1=SGN(PY-ML%(n,1))
+15350   REMark If few health points, monster will run away
+15360   IF MZ%(n,1) < (dungeonLevel*level) THEN LET x1=-x1: LET Y1=-Y1
+15370   IF Y1<>0 THEN 
+15380     LET tmp%=dng%(ML%(n,0),ML%(n,1)+Y1,0)
+15390     IF ( tmp%<>1 AND tmp%<>2 AND dng%(ML%(n,0),ML%(n,1)+Y1,1)=0 ) THEN 
+15400       LET x1=0
+15410     ELSE 
+15420       LET Y1=0
+15430     END IF 
+15440   END IF 
+15450   IF x1<>0 THEN 
+15460     LET tmp%=dng%(ML%(n,0)+x1,ML%(n,1),0)
+15470     IF ( tmp%<>1 AND tmp%<>2 AND dng%(ML%(n,0)+x1,ML%(n,1),1)=0 ) THEN 
+15480       LET Y1=0
+15490     ELSE 
+15500       LET x1=0
+15510     END IF 
+15520   END IF 
+15530   IF ((x1 OR Y1) AND NOT (ML%(n,0)+x1=PX AND ML%(n,1)+Y1=PY)) THEN 
+15540     LET dng%(ML%(n,0),ML%(n,1),1)=0
+15550     LET ML%(n,0)=ML%(n,0)+x1
+15560     LET ML%(n,1)=ML%(n,1)+Y1
+15570     LET dng%(ML%(n,0),ML%(n,1),1)=n
+15580   END IF 
+15590   REMark In original game, monster may rejuvinate at this point (Line 4083), if doesn't attack
+15600 END FOR n
 15990 END DEFine checkForAttack
 16000 REMark ==============
 16010 REMark Attack monster
 16020 REMark ==============
-16030 DEFine PROCedure attackMonster(pt$, dungeonLevel, PX, PY, dx, dy)
+16030 DEFine PROCedure attackMonster(pt$, dungeonLevel, PX, PY, dx, dy, hpBonus)
 16040 LOCal throwWeapon, weapon, keyPress, n, damage, amuletFunction, badEffect
 16050 REMark Choose weapon
 16060 LET weapon=-1
@@ -796,6 +813,7 @@
 17350   LET reward=monsterNumber+dungeonLevel
 17360   PRINT #0, reward; " PIECES OF EIGHT"
 17370   LET c(5)=c(5)+reward
+17375   LET hpBonus=hpBonus+INT(monsterNumber*dungeonLevel/2)
 17380   LET dng%(ML%(monsterNumber,0),ML%(monsterNumber,1),1)=0
 17390   LET MZ%(monsterNumber,0)=0
 17400   REMark Check if has completed task
@@ -804,27 +822,28 @@
 17430   END IF 
 17440 END IF 
 17990 END DEFine attackMonster
-20000 REMark Print number, fixed-width, right-justified
-20005 DEFine PROCedure printNum(value, length, channel)
-20010 LOCal v$, n
-20020 LET v$=INT (value)
-20030 IF LEN(v$)>length THEN 
-20040 FOR n=1 TO length: LET v$=v$+"*": END FOR n
-20045 ELSE 
-20050 REPeat pSLoop: IF LEN(v$)=length: EXIT pSLoop: END IF : v$=" "&v$: END REPeat pSLoop
-20060 END IF 
-20070 PRINT #channel, v$;
-20080 END DEFine printNum
-20100 REMark Reset default screen layout (for TV mode)
-20110 WINDOW #0, 448, 40, 32, 216
-20120 PAPER #0, 0: INK #0, 7: BORDER #0
-20130 OPEN #1, CON_448x200a32x16_128
-20140 PAPER #1, 2: INK #1,7: BORDER #1: CLS #1
-20150 OPEN #2, CON_448x200a32x16_128
-20160 PAPER #2, 1: INK #2,7: BORDER #2: CLS #2
-20170 MODE 8
-20180 STOP
-20500 DEFine FuNction SGN(x): RETurn (x>0)-(x<0): END DEFine 
+29000 REMark Print number, fixed-width, right-justified
+29005 DEFine PROCedure printNum(value, length, channel)
+29010 LOCal v$, n
+29020 LET v$=INT (value)
+29030 IF LEN(v$)>length THEN 
+29040 FOR n=1 TO length: LET v$=v$+"*": END FOR n
+29045 ELSE 
+29050 REPeat pSLoop: IF LEN(v$)=length: EXIT pSLoop: END IF : v$=" "&v$: END REPeat pSLoop
+29060 END IF 
+29070 PRINT #channel, v$;
+29080 END DEFine printNum
+29100 REMark Reset default screen layout (for TV mode)
+29110 WINDOW #0, 448, 40, 32, 216
+29120 PAPER #0, 0: INK #0, 7: BORDER #0
+29130 OPEN #1, CON_448x200a32x16_128
+29140 PAPER #1, 2: INK #1,7: BORDER #1: CLS #1
+29150 OPEN #2, CON_448x200a32x16_128
+29160 PAPER #2, 1: INK #2,7: BORDER #2: CLS #2
+29170 MODE 8
+29180 STOP
+29900 REMark User-defined functions
+29910 DEFine FuNction SGN(x): RETurn (x>0)-(x<0): END DEFine 
 30000 REMark TESTS
 30100 REMark Check Overland Map
 30110 DEFine PROCedure printMap(te%, tx, ty)
@@ -839,17 +858,28 @@
 30200 END FOR n
 30210 INK 6: AT 20-ty,tx: PRINT "*": INK 7
 30220 PAUSE -1
-30230 RETurn 
+30230 END DEFine printMap
 30300 REMark Check Dungeon Map
 30310 DEFine PROCedure printDungeonMap(dng%, PX, PY)
 30320 LOCal m, n
 30330 AT 0,0
 30340 FOR m=0 TO 10
-30350 FOR n=0 TO 10
-30360 LET zz=dng%(m,n,0)
-30370 IF zz THEN PRINT zz;: ELSE PRINT " ";: END IF 
-30380 END FOR n
-30390 PRINT
+30350   FOR n=0 TO 10
+30360     LET zz=dng%(m,n,0)
+30370     IF zz THEN 
+30372       PRINT zz;
+30374     ELSE 
+30376       PRINT " ";
+30378     END IF 
+30380   END FOR n
+30390   PRINT
 30400 END FOR m
 30410 PAUSE -1
-30430 RETurn 
+30430 END DEFine printDungeonMap
+30500 REMark Key Code checker
+30510 CLS
+30520 LET keyPress=CODE(INKEY$(-1))
+30530 IF keyPress=0 THEN GO TO 30520
+30540 AT 0,0
+30550 PRINT keyPress; "   "
+30560 GO TO 30520
